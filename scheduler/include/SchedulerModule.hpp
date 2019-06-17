@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <fstream>
 
 #include "std_msgs/String.h"
 
@@ -25,7 +26,7 @@ class SchedulerModule {
 		SchedulerModule(const SchedulerModule &);
 		SchedulerModule &operator=(const SchedulerModule &); //Talvez inútil
 
-		//virtual void tearDown();
+		virtual void tearDown();
 
 	public:
 		virtual void setUp();
@@ -68,6 +69,8 @@ class SchedulerModule {
 		std::mutex _modules_mutex;
 
 		ros::NodeHandle scheduler_topic_handler;
+
+		std::ofstream scheduler_record;
 };
 
 #endif
