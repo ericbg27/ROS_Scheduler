@@ -10,6 +10,6 @@ EDF message scheduler module for Robot Operating System (ROS)
   * _frequency:=
   * _deadline:=
   * _wce:=
-  * _name:= (optional if module number is an one to one relationship with executable number, mandatory if not)
+  * __name:= (optional if module number is an one to one relationship with executable number, mandatory if not)
 + Scheduler must be launched before. It doesn't schedule modules declared beforehand
 + Some code must be implmented in modules, these codes are in the Test Module module
