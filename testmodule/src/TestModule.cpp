@@ -71,10 +71,14 @@ void TestModule::setUp() {
 
 //void TestModule::tearDown() {}
 
-void TestModule::schedulingCallback(const std_msgs::StringConstPtr& msg) {
+void TestModule::schedulingCallback(const messages::FinishMessage::ConstPtr& msg) {
 	std::cout << "Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
-	std::cout << "received_name: " << msg->data << std::endl;
-	received_name = msg->data;
+	std::cout << "received_name: " << msg->name << std::endl;
+	received_name = msg->name;
+	if(received_name == ros::this_node::getName()) {
+		ros::Time aux(msg->sec, msg->nsec);
+		deadlines.push_back(aux);
+	}
 }
 
 void TestModule::run() {
@@ -89,18 +93,20 @@ void TestModule::run() {
 		if(received_name == md.name) {
 			ROS_INFO("Running now");
 
-			messages::FinishMessage msg;
-
-			msg.name = ros::this_node::getName();
-
 			ros::Time finish_time = ros::Time::now();
+			std::cout << "Deadline used: " << boost::posix_time::to_iso_extended_string(deadlines[0].toBoost()) << std::endl;
+			if(finish_time <= deadlines[0]) {
+				messages::FinishMessage msg;
 
-			msg.sec = finish_time.sec;
-			msg.nsec = finish_time.nsec;
+				msg.name = ros::this_node::getName();
+				msg.sec = finish_time.sec;
+				msg.nsec = finish_time.nsec;
 
-			scheduling_pub.publish(msg);
+				scheduling_pub.publish(msg);	
+			}
 
-			ros::spinOnce();
+			deadlines.erase(deadlines.begin());
+
 			loop_rate.sleep();
 		} else {
 			//ROS_INFO("Not Running");

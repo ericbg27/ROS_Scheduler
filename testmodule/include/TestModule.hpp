@@ -27,7 +27,7 @@ class TestModule {
 		TestModule &operator=(const TestModule &);
 
 		//virtual void tearDown();
-		void schedulingCallback(const std_msgs::StringConstPtr& msg);
+		void schedulingCallback(const messages::FinishMessage::ConstPtr& msg);
 
 	public:
 
@@ -55,6 +55,8 @@ class TestModule {
 		std::string topic_name;
 
 		std::string finish_topic_name;
+
+		std::vector<ros::Time> deadlines;
 };
 
 #endif

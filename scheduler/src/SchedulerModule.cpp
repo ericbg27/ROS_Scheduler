@@ -98,7 +98,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 				std::unique_lock< std::mutex > lock( _modules_mutex );
 				deleting_sync = false;
 
-				ros::Publisher pub = scheduler_topic_handler.advertise<std_msgs::String>(topic_name, 1);
+				ros::Publisher pub = scheduler_topic_handler.advertise<messages::FinishMessage>(topic_name, 1);
 
 				scheduler_pub[req.name] = pub;
 
@@ -114,8 +114,8 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 				ready_queue.insert(item);
 
 				lock.unlock();
-				deleting.notify_all();
 				deleting_sync = true;
+				deleting.notify_all();
 			}
 
 			std::cout << "Module Connected. Name: " << req.name << std::endl;
@@ -142,8 +142,8 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 				schedule_finish.erase(subscriber_iterator);
 
 				lock.unlock();
-				deleting.notify_all();
 				deleting_sync = true;
+				deleting.notify_all();
 			}
 
 			std::cout << "Module Disconnected. Name: " << req.name << std::endl;
@@ -171,6 +171,9 @@ void SchedulerModule::moduleFinishCallback(const messages::FinishMessage::ConstP
 	if(msg->name != "") {
 		if(connected_modules[msg->name].active == true) {
 			ros::Time aux(msg->sec,msg->nsec);
+			scheduler_record << "Finish scheduling module: " << msg->name << std::endl;
+			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(aux.toBoost()) << std::endl << std::endl;
+			scheduler_record << "Received Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl << std::endl;
 			scheduling_modules[msg->name].finish_time = aux;
 			finished_modules.push_back(msg->name);
 		}
@@ -190,33 +193,7 @@ void SchedulerModule::run() {
 
 }
 
-/*std::set<std::pair<std::string, ros::Time>, Comparator> SchedulerModule::deadlinesSetCreation() {
-	
-	std::map<std::string, moduleParameters>::iterator modules_iterator;
-
-    std::map<std::string, ros::Time> deadlines_map;
-
-    {
-    	std::unique_lock< std::mutex > lock( _modules_mutex );
-
-	    for(modules_iterator = connected_modules.begin();modules_iterator != connected_modules.end();++modules_iterator) {
-
-	    	if(modules_iterator->second.active == false && modules_iterator->second.executed_in_cycle == false) {
-	        	deadlines_map.insert(std::pair<std::string, ros::Time> (modules_iterator->first, modules_iterator->second.absolute_deadline));
-	        }
-	    
-	    }
-	}
-
-    std::set<std::pair<std::string, ros::Time>, Comparator> set_of_deadlines(
-        deadlines_map.begin(), deadlines_map.end(), comp
-    );   
-
-    return set_of_deadlines;
-
-}*/
-
-void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &scheduler_pub*/) {
+void SchedulerModule::EDFSched() {
 
 	ros::Rate loop_rate(frequency);
 	ros::spinOnce();
@@ -230,6 +207,7 @@ void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &schedule
 
 		if(ready_queue.size() > 0) {
 
+		//std::cout << "Getting ready queue element..." << std::endl;
 		std::set<std::pair<std::string, ros::Time>, Comparator>::iterator deadlines_it = ready_queue.begin();
 
         std::map<std::string, moduleParameters>::iterator modules_iterator;
@@ -237,7 +215,7 @@ void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &schedule
         modules_iterator = connected_modules.find(std::get<0>(*(deadlines_it)));
 
         ready_queue.erase(deadlines_it);
-
+        //std::cout << "Erase ready queue element..." << std::endl;
         if(modules_iterator != connected_modules.end()) {
 
         	bool invalid = false;
@@ -261,8 +239,8 @@ void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &schedule
                     //If the module is able to execute, choose it
                     if(modules_iterator->second.executed_in_cycle == false && modules_iterator->second.active == false) {
                                                 
-                    	std_msgs::String chosen_module;
-                    	chosen_module.data = name;
+                    	scheduler_record << "Module Scheduled: " << name << std::endl;
+		                scheduler_record << "Deadline: " << boost::posix_time::to_iso_extended_string(connected_modules[name].absolute_deadline.toBoost()) << std::endl;
                     	//std::cout << "Chosen Module: " << chosen_module.data << std::endl;
 
                     	{
@@ -274,7 +252,12 @@ void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &schedule
                     		publisher_iterator = scheduler_pub.find(name);
 
                     	if(publisher_iterator != scheduler_pub.end()) {
-		                   	scheduler_pub[name].publish(chosen_module);
+                    		messages::FinishMessage msg;
+                    		msg.name = name;
+                    		msg.sec = modules_iterator->second.absolute_deadline.sec;
+                    		msg.nsec = modules_iterator->second.absolute_deadline.nsec;
+
+		                   	scheduler_pub[name].publish(msg);
 		                } else {
 		                    std::cout << std::endl;
 		                    std::cout << "Module " << name << " is disconnected! Scheduling next module." << std::endl;
@@ -284,9 +267,10 @@ void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &schedule
 
 	                    if(!invalid) {
 	                    	//std::cout << "Not invalid." << std::endl;
-	                    	connected_modules[name].active = true;
+	                    	modules_iterator->second.active = true;
 
 	                    	ros::Time init = ros::Time::now();
+	                    	scheduler_record << "Initial Time: " << boost::posix_time::to_iso_extended_string(init.toBoost()) << std::endl << std::endl;
 	                    	ros::Duration diff = ros::Time::now() - init;
 
 	                    	sum_microsseconds = static_cast<uint32_t>(connected_modules[name].absolute_deadline.nsec/1000UL) + connected_modules[name].wce;
@@ -327,13 +311,13 @@ void SchedulerModule::EDFSched(/*std::map<std::string, ros::Publisher> &schedule
 void SchedulerModule::checkForDeadlineUpdate() {
 
 	//ROS_INFO("Checking for updates...");
+	ros::Rate loop_rate(frequency);
+
 	while(ros::ok()) {
 		{
             std::unique_lock< std::mutex > lock( _modules_mutex );
             deleting.wait(lock, [this]{return deleting_sync;});
         }
-
-		ros::Rate loop_rate(frequency);
 
 		std::map<std::string, moduleParameters>::iterator modules_iterator;
 
@@ -358,7 +342,7 @@ void SchedulerModule::checkForDeadlineUpdate() {
 			}	
 		}
 
-		ros::spinOnce();
+		//ros::spinOnce();
 		loop_rate.sleep();
 	}
 
@@ -402,12 +386,27 @@ void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::
         	modules_iterator->second.task_counter[1] = modules_iterator->second.task_counter[0] - 1;
 
         	//std::cout << "Inserting in ready_queue" << std::endl;
-        	auto item = std::make_pair(modules_iterator->first, new_deadline);
+        	std::pair<std::string, ros::Time> item = std::make_pair(modules_iterator->first, new_deadline);
+
+        	std::set<std::pair<std::string, ros::Time>, Comparator>::iterator ready_queue_iterator;
+
+        	/*std::cout << "Finding ready queue element..." << std::endl;
+        	for(ready_queue_iterator = ready_queue.begin(); ready_queue_iterator != ready_queue.end(); ready_queue_iterator++) {
+        		std::cout << "first element: " << ready_queue_iterator->first << std::endl;
+        		if(ready_queue_iterator->first == modules_iterator->first) {
+        			std::cout << "Erasing if exists..." << std::endl;
+        			ready_queue.erase(ready_queue_iterator);
+        			break;
+        		}
+        	}*/
+        	//std::cout << "Going to insert..." << std::endl;
         	ready_queue.insert(item);
+        	//std::cout << "Inserted new element" << std::endl;
+
         	sync = true;
+        	ready.notify_one();
 
         	lk.unlock();
-        	ready.notify_one();
         }
 
 }
@@ -416,7 +415,7 @@ void SchedulerModule::coordinateModules() {
 
 	ros::Rate loop_rate(frequency);
 
-	ros::spinOnce();
+	//ros::spinOnce();
 
 	while(ros::ok()) {
 	unsigned int i = 0;
@@ -428,13 +427,18 @@ void SchedulerModule::coordinateModules() {
 		//std::cout << "Entering coordinateModules loop" << std::endl;
 		//std::cout << "Module name: " << scheduling_queue[i] << std::endl;
 
-		std_msgs::String chosen_module;
-        chosen_module.data = "";
+		messages::FinishMessage msg;
+        msg.name = "";
+        msg.sec = 0;
+        msg.nsec = 0;
         bool invalid = false;
 
         finished_iterator = std::find(finished_modules.begin(), finished_modules.end(), scheduling_queue[i]);
 		if(finished_iterator != finished_modules.end()) {
 			//std::cout << "Module Finished" << std::endl;
+			//std::cout << "max_time: " << boost::posix_time::to_iso_extended_string(scheduling_modules[scheduling_queue[i]].max_time.toBoost()) << std::endl;
+			//std::cout << "Module Name: " << scheduling_queue[i] << std::endl;
+
 			if(scheduling_modules[scheduling_queue[i]].finish_time > scheduling_modules[scheduling_queue[i]].max_time) {
 			    {
                     std::unique_lock< std::mutex > lock( _modules_mutex );
@@ -445,7 +449,7 @@ void SchedulerModule::coordinateModules() {
 	   			publisher_iterator = scheduler_pub.find(scheduling_queue[i]);
 
 	            if(publisher_iterator != scheduler_pub.end()) {
-			        scheduler_pub[scheduling_queue[i]].publish(chosen_module);
+			        scheduler_pub[scheduling_queue[i]].publish(msg);
 			    } else {
 			        invalid = true;
 			    }
@@ -470,6 +474,7 @@ void SchedulerModule::coordinateModules() {
 
 			if(scheduling_modules[scheduling_queue[i]].diff >= timeout_time || ros::Time::now() > scheduling_modules[scheduling_queue[i]].max_time) {
 				//std::cout << "Module Timeout" << std::endl;
+				//std::cout << "Module Name: " << scheduling_queue[i] << std::endl;
 				{
 			        std::unique_lock< std::mutex > lock( _modules_mutex );
 
@@ -477,14 +482,11 @@ void SchedulerModule::coordinateModules() {
 	   				publisher_iterator = scheduler_pub.find(scheduling_queue[i]);
 
 	                if(publisher_iterator != scheduler_pub.end()) {
-			            scheduler_pub[scheduling_queue[i]].publish(chosen_module);
+			            scheduler_pub[scheduling_queue[i]].publish(msg);
 			        } else {
 			            invalid = true;
 			        }
 			    }
-			    //if(!invalid) {
-			        //ros::spinOnce();
-			    //}
 
 			    modules_iterator = connected_modules.find(scheduling_queue[i]);
 
@@ -501,7 +503,7 @@ void SchedulerModule::coordinateModules() {
 
 		}
 	}
-	ros::spinOnce();
+	//ros::spinOnce();
 	loop_rate.sleep();
 	}
 }
