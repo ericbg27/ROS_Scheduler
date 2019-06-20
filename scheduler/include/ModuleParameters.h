@@ -13,6 +13,8 @@ struct moduleParameters {
 	bool executed_in_cycle;
 	std::vector<int> task_counter;
 	std::string topic_name;
+	std::string finish_topic_name;
+	bool active;
 };
 
 #endif

@@ -65,12 +65,15 @@ void TestModule::setUp() {
 	topic_name = ros::this_node::getName().substr(1) + "topic";
     sched = scheduling_handler.subscribe(topic_name, 1, &TestModule::schedulingCallback, this);
 
-	scheduling_pub = finish_scheduling_handler.advertise<std_msgs::String>("scheduling_finish", 1);
+    finish_topic_name = topic_name + "_finish";
+	scheduling_pub = finish_scheduling_handler.advertise<messages::FinishMessage>(finish_topic_name, 1);
 }
 
 //void TestModule::tearDown() {}
 
 void TestModule::schedulingCallback(const std_msgs::StringConstPtr& msg) {
+	std::cout << "Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
+	std::cout << "received_name: " << msg->data << std::endl;
 	received_name = msg->data;
 }
 
@@ -86,16 +89,21 @@ void TestModule::run() {
 		if(received_name == md.name) {
 			ROS_INFO("Running now");
 
-			std_msgs::String msg;
+			messages::FinishMessage msg;
 
-			msg.data = md.name;
+			msg.name = ros::this_node::getName();
+
+			ros::Time finish_time = ros::Time::now();
+
+			msg.sec = finish_time.sec;
+			msg.nsec = finish_time.nsec;
 
 			scheduling_pub.publish(msg);
 
 			ros::spinOnce();
 			loop_rate.sleep();
 		} else {
-			ROS_INFO("Not Running");
+			//ROS_INFO("Not Running");
 			loop_rate.sleep();
 		}
 

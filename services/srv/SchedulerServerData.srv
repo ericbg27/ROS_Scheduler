@@ -8,3 +8,4 @@ bool connection
 #response constants
 bool ACK
 string topic_name
+string finish_topic_name
