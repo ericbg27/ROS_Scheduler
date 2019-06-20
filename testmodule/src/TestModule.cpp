@@ -13,6 +13,7 @@ void schedulingSigIntHandler(int sig) {
 	srv.request.frequency = 0;
 	srv.request.deadline = 0;
 	srv.request.wce = 0;
+	srv.request.priority = 0;
 
 	srv.request.connection = false;
 

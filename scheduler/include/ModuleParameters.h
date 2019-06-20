@@ -15,6 +15,10 @@ struct moduleParameters {
 	std::string topic_name;
 	std::string finish_topic_name;
 	bool active;
+	int jobs;
+	int failures;
+	std::vector<float> miss_ratio_vector;
+	int priority;
 };
 
 #endif

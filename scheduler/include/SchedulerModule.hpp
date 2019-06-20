@@ -6,6 +6,7 @@
 #include <mutex>
 #include <fstream>
 #include <thread>
+#include <tuple>
 
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <unistd.h>
@@ -16,7 +17,6 @@
 #include "std_msgs/String.h"
 
 #include "ros/ros.h"
-//#include <ros/callback_queue.h>
 
 #include "services/SchedulerServerData.h"
 #include "messages/FinishMessage.h"
@@ -25,9 +25,13 @@
 
 struct Comparator
 {
-	bool operator()(std::pair<std::string, ros::Time> D1, std::pair<std::string, ros::Time> D2) {
-		if(D1.first == D2.first || D1.first != D2.first) {
-    		return D1.second < D2.second;
+	bool operator()(std::tuple<std::string, ros::Time, int> D1, std::tuple<std::string, ros::Time, int> D2) {
+		if(std::get<0>(D1) == std::get<0>(D2)|| std::get<0>(D1) != std::get<0>(D2)) {
+			if(std::get<2>(D1) != std::get<2>(D2)) {
+    			return std::get<2>(D1) < std::get<2>(D2);
+    		} else {
+    			return std::get<1>(D1) < std::get<1>(D1);
+    		}
 		}
 	}
 };
@@ -47,7 +51,7 @@ class SchedulerModule {
 
 		std::set<std::pair<std::string, ros::Time>, Comparator> deadlinesSetCreation();
 
-		void EDFSched(/*std::map<std::string,ros::Publisher> &scheduler_pub*/);
+		void EDFSched();
 
 		void checkForDeadlineUpdate();
 		void updateParameters(std::map<std::string, moduleParameters>::iterator modules_iterator, ros::Time module_next_arrival);
@@ -65,12 +69,18 @@ class SchedulerModule {
 
 		void coordinateModules();
 
+		void Monitor();
+
+		int PIDControl(std::vector<float> miss_ratio_vector, int actual_priority);
+
 	private:
 		std::map<std::string, moduleParameters> connected_modules;
 
 		std::map<std::string, moduleSchedulingParameters> scheduling_modules;
 
 		float frequency;
+
+		float monitor_frequency;
 
 		uint32_t timeout; //timeout in milisseconds
 
@@ -82,7 +92,7 @@ class SchedulerModule {
 
 		std::map<std::string, ros::Subscriber> schedule_finish;
 
-		std::mutex _modules_mutex, _ready_queue_sync;
+		std::mutex _modules_mutex, _ready_queue_sync, _monitor_sync;
 
 		ros::NodeHandle scheduler_topic_handler, scheduling_finish_handler;
 
@@ -90,19 +100,20 @@ class SchedulerModule {
 
 		std::vector<std::string> scheduling_queue;
 
-		//std::vector<std::string> ready_queue;
-
 		ros::Duration timeout_time;
 
-		std::condition_variable ready, deleting;
+		std::condition_variable ready, deleting, monitor;
 
-		bool sync, deleting_sync;
+		bool sync, deleting_sync, monitor_sync;
 
-		std::set<std::pair<std::string, ros::Time>, Comparator> ready_queue;
+		//std::set<std::pair<std::string, ros::Time>, Comparator> ready_queue;
 
-		//std::thread thread1();
+		std::set<std::tuple<std::string, ros::Time, int>, Comparator> ready_queue;
 
-		//std::thread thread2();
+		//Controller variables
+		int control_type;
+		int DW, IW;
+		float Kp, Kd, Ki;
 };
 
 #endif

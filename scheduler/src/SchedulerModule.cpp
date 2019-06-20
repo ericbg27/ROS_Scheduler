@@ -3,11 +3,19 @@
 SchedulerModule::SchedulerModule(const int32_t &argc, char **argv) : 
 	connected_modules(),
 	frequency(5.0),
+	monitor_frequency(0.5),
 	timeout(500),
 	scheduler_pub(),
 	scheduler_record(),
 	sync(true),
-	deleting_sync(true) {
+	deleting_sync(true),
+	monitor_sync(true),
+	control_type(0),
+	IW(4),
+	DW(2),
+	Kp(-0.8),
+	Kd(-4),
+	Ki(-0.08) {
 		
 		const char *homedir = getenv("HOME");
 		if(homedir == NULL) {
@@ -25,6 +33,7 @@ SchedulerModule::SchedulerModule(const int32_t &argc, char **argv) :
 SchedulerModule::SchedulerModule() :
 	connected_modules(),
 	frequency(5.0),
+	monitor_frequency(0.5),
 	timeout(500),
 	scheduler_pub(),
 	scheduler_record() {}
@@ -37,6 +46,8 @@ void SchedulerModule::setUp() {
 	ros::NodeHandle param_handler("~"), scheduler_service_handler;
 
 	param_handler.getParam("frequency", frequency);
+	param_handler.getParam("monitor_frequency", monitor_frequency);
+	param_handler.getParam("control_type", control_type);
 	int timeout_param;
 	param_handler.getParam("timeout", timeout_param);
 
@@ -92,6 +103,23 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 
 			mp.active = false;
 
+			mp.jobs = 0;
+
+			mp.failures = 0;
+
+			int bigger_window;
+			if(DW >= IW) {
+				bigger_window = DW;
+			} else if(IW > DW) {
+				bigger_window = IW;
+			}
+
+			std::vector<float> empty_vector(bigger_window, 0.0);
+
+			mp.miss_ratio_vector = empty_vector;
+
+			mp.priority = req.priority;
+
 			moduleSchedulingParameters mse;
 
 			{
@@ -110,7 +138,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 
 				scheduling_modules[req.name] = mse;
 
-				auto item = std::make_pair(req.name, mp.absolute_deadline);
+				auto item = std::make_tuple(req.name, mp.absolute_deadline, mp.priority);
 				ready_queue.insert(item);
 
 				lock.unlock();
@@ -191,6 +219,10 @@ void SchedulerModule::run() {
 	thread2.join();
 	thread3.join();
 
+	if(control_type == 1) {
+		std::thread thread4(&SchedulerModule::Monitor, this);
+		thread4.join();
+	}
 }
 
 void SchedulerModule::EDFSched() {
@@ -205,10 +237,15 @@ void SchedulerModule::EDFSched() {
 			ready.wait(lk, [this]{return sync;});
 		}
 
+		{
+			std::unique_lock< std::mutex > lk( _ready_queue_sync );
+			monitor.wait(lk, [this]{return monitor_sync;});
+		}
+
 		if(ready_queue.size() > 0) {
 
 			//std::cout << "Getting ready queue element..." << std::endl;
-			std::set<std::pair<std::string, ros::Time>, Comparator>::iterator deadlines_it = ready_queue.begin();
+			std::set<std::tuple<std::string, ros::Time, int>, Comparator>::iterator deadlines_it = ready_queue.begin();
 
 	        std::map<std::string, moduleParameters>::iterator modules_iterator;
 
@@ -360,6 +397,7 @@ void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::
 
         aux += 1;
 
+
         modules_iterator->second.task_counter[1] = modules_iterator->second.task_counter[0];
         modules_iterator->second.task_counter[0] += aux;
 
@@ -381,19 +419,27 @@ void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::
         {
         	std::unique_lock< std::mutex > lk( _ready_queue_sync );
         	modules_iterator->second.absolute_deadline = new_deadline;
+
+        	if(!modules_iterator->second.executed_in_cycle) {
+        		modules_iterator->second.failures += aux;
+        	} else {
+        		modules_iterator->second.failures += aux;
+        	}
+
+        	modules_iterator->second.jobs += aux;
+
         	modules_iterator->second.executed_in_cycle = false;
         	modules_iterator->second.task_counter[1] = modules_iterator->second.task_counter[0] - 1;
-
         	//std::cout << "Inserting in ready_queue" << std::endl;
-        	std::pair<std::string, ros::Time> item = std::make_pair(modules_iterator->first, new_deadline);
+        	std::tuple<std::string, ros::Time, int> item = std::make_tuple(modules_iterator->first, new_deadline, modules_iterator->second.priority);
 
-        	std::set<std::pair<std::string, ros::Time>, Comparator>::iterator ready_queue_iterator;
+        	//std::set<std::tuple<std::string, ros::Time, int>, Comparator>::iterator ready_queue_iterator;
 
         	ready_queue.insert(item);
         	//std::cout << "Inserted new element" << std::endl;
 
         	sync = true;
-        	ready.notify_one();
+        	ready.notify_all();
 
         	lk.unlock();
         }
@@ -499,4 +545,107 @@ void SchedulerModule::coordinateModules() {
 	//ros::spinOnce();
 	loop_rate.sleep();
 	}
+}
+
+void SchedulerModule::Monitor() {
+	ros::Rate loop_rate(monitor_frequency);
+
+	while(ros::ok()) {
+
+		std::map<std::string, moduleParameters> aux;
+
+		aux = connected_modules;
+
+		std::map<std::string,moduleParameters>::iterator modules_iterator;
+
+		std::map<std::string, std::vector<float>> miss_ratio_map;
+
+		std::map<std::string, int> priority_map;
+
+		for(modules_iterator = aux.begin();modules_iterator != aux.end();++modules_iterator) {
+			miss_ratio_map[modules_iterator->first] = modules_iterator->second.miss_ratio_vector;
+			miss_ratio_map[modules_iterator->first].erase(miss_ratio_map[modules_iterator->first].begin());
+
+			if(modules_iterator->second.jobs > 0) {
+				miss_ratio_map[modules_iterator->first].push_back(modules_iterator->second.failures/modules_iterator->second.jobs);
+			} else {
+				miss_ratio_map[modules_iterator->first].push_back(0);
+			}
+
+			priority_map[modules_iterator->first] = PIDControl(miss_ratio_map[modules_iterator->first], modules_iterator->second.priority);
+		}
+
+		std::map<std::string,std::vector<float>>::iterator miss_ratio_iterator;
+
+		{
+			std::unique_lock< std::mutex > lk( _ready_queue_sync );
+			ready.wait(lk, [this]{return sync;});
+		}
+
+		{
+	       	std::unique_lock< std::mutex > lock( _modules_mutex );
+	        deleting.wait(lock, [this]{return deleting_sync;});
+	    }
+
+		for(miss_ratio_iterator = miss_ratio_map.begin(); miss_ratio_iterator != miss_ratio_map.end(); ++miss_ratio_iterator) {
+
+			if(connected_modules.find(miss_ratio_iterator->first) != connected_modules.end()) {
+				connected_modules[miss_ratio_iterator->first].miss_ratio_vector = miss_ratio_iterator->second;
+				connected_modules[miss_ratio_iterator->first].jobs = 0;
+				connected_modules[miss_ratio_iterator->first].failures = 0;
+			}
+
+		}
+
+		std::map<std::string, int>::iterator priority_iterator;
+
+		{
+			monitor_sync = false;
+			std::unique_lock< std::mutex > mlk( _monitor_sync );
+
+			for(priority_iterator = priority_map.begin();priority_iterator != priority_map.end(); ++priority_iterator) {
+				if(connected_modules.find(priority_iterator->first) != connected_modules.end()) {
+					connected_modules[priority_iterator->first].priority = priority_iterator->second;
+				}
+			}
+
+			monitor_sync = true;
+        	monitor.notify_all();
+
+        	mlk.unlock();	
+		}
+
+		/*for(modules_iterator = connected_modules.begin();modules_iterator != connected_modules.end();++connected_modules) {
+			PIDControl(modules_iterator->second.miss_ratio, modules_iterator->second.priority);
+		}*/
+
+		loop_rate.sleep();
+	}
+}
+
+int SchedulerModule::PIDControl(std::vector<float> miss_ratio_vector, int actual_priority) {
+
+	int new_priority;
+	float delta_priority;
+
+	float sum = 0;
+
+	int size = static_cast<int>(miss_ratio_vector.size());
+
+	for(int i = 0;i < IW;i++) {
+		sum += miss_ratio_vector[size-1-i];
+	}
+
+	delta_priority = Kp*miss_ratio_vector[size-1] + Ki*sum + Kd*((miss_ratio_vector[size-1] - miss_ratio_vector[size-DW-1])/DW);
+
+	new_priority = actual_priority + static_cast<int>(round(delta_priority));
+
+	if(new_priority < 0) {
+		new_priority = 0;
+	} else if(new_priority > 100) {
+		new_priority = 100;
+	}
+
+	return new_priority;
+
 }
