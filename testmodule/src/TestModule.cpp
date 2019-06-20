@@ -71,21 +71,17 @@ void TestModule::setUp() {
 
 //void TestModule::tearDown() {}
 
-void TestModule::schedulingCallback(const messages::FinishMessage::ConstPtr& msg) {
+void TestModule::schedulingCallback(const std_msgs::StringConstPtr& msg) {
 	std::cout << "Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
-	std::cout << "received_name: " << msg->name << std::endl;
-	received_name = msg->name;
-	if(received_name == ros::this_node::getName()) {
-		ros::Time aux(msg->sec, msg->nsec);
-		deadlines.push_back(aux);
-	}
+	std::cout << "received_name: " << msg->data << std::endl;
+	received_name = msg->data;
 }
 
 void TestModule::run() {
 
 	float period = static_cast<float>(md.deadline)/1000000.0;
 
-	ros::Rate loop_rate((1/period)*2);
+	ros::Rate loop_rate((1/period)*5);
 
 	while(!ros::isShuttingDown()) {
 		ros::spinOnce();
@@ -94,18 +90,14 @@ void TestModule::run() {
 			ROS_INFO("Running now");
 
 			ros::Time finish_time = ros::Time::now();
-			std::cout << "Deadline used: " << boost::posix_time::to_iso_extended_string(deadlines[0].toBoost()) << std::endl;
-			if(finish_time <= deadlines[0]) {
-				messages::FinishMessage msg;
 
-				msg.name = ros::this_node::getName();
-				msg.sec = finish_time.sec;
-				msg.nsec = finish_time.nsec;
+			messages::FinishMessage msg;
 
-				scheduling_pub.publish(msg);	
-			}
+			msg.name = ros::this_node::getName();
+			msg.sec = finish_time.sec;
+			msg.nsec = finish_time.nsec;
 
-			deadlines.erase(deadlines.begin());
+			scheduling_pub.publish(msg);	
 
 			loop_rate.sleep();
 		} else {
@@ -115,7 +107,5 @@ void TestModule::run() {
 
 		received_name = "";
 	}
-
-	//Put here part where module disconnection sends a disconnection signal to scheduler
 
 }

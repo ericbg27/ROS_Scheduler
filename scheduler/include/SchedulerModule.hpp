@@ -23,14 +23,6 @@
 #include "ModuleParameters.h"
 #include "ModuleSchedulingParameters.h"
 
-/*typedef std::function<bool(std::pair<std::string, ros::Time>, std::pair<std::string, ros::Time>)> Comparator;
-
-const Comparator comp = [](std::pair<std::string, ros::Time> D1, std::pair<std::string, ros::Time> D2) {
-	if(D1.first == D2.first || D1.first != D2.first) {
-    	return D1.second < D2.second;
-	}
-};*/
-
 struct Comparator
 {
 	bool operator()(std::pair<std::string, ros::Time> D1, std::pair<std::string, ros::Time> D2) {
@@ -67,6 +59,7 @@ class SchedulerModule {
 		virtual ~SchedulerModule();
 
 		void moduleFinishCallback(const messages::FinishMessage::ConstPtr& msg);
+		//void moduleFinishCallback(const std_msgs::StringConstPtr& msg);
 
 		void run();
 

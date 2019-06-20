@@ -1,9 +1,9 @@
 #ifndef TEST_MODULE_HPP
 #define TEST_MODULE_HPP
+
 #include <string>
 #include <vector>
 #include <signal.h>
-#include "boost/date_time/posix_time/posix_time.hpp"
 
 #include "std_msgs/String.h"
 #include "ros/ros.h"
@@ -20,24 +20,27 @@ struct moduleDescriptor {
 };
 
 
-class TestModule {
+class ModuleTemplate {
 
 	private:
-		TestModule(const TestModule &);
-		TestModule &operator=(const TestModule &);
+		ModuleTemplate(const ModuleTemplate &);
+		ModuleTemplate &operator=(const ModuleTemplate &);
 
 		void schedulingCallback(const std_msgs::StringConstPtr& msg);
+
 	public:
 
 		virtual void setUp();
 
+		//virtual void tearDown()
+
 		virtual void run();
 
-		TestModule(const int32_t &argc, char **argv);
+		ModuleTemplate(const int32_t &argc, char **argv);
 
-		virtual ~TestModule();
+		virtual ~ModuleTemplate();
 
-		static void schdulingSigIntHandler(int sig);
+		static void schedulingSigIntHandler(int sig);
 
 	private:
 		moduleDescriptor md;
@@ -54,6 +57,9 @@ class TestModule {
 
 		std::string finish_topic_name;
 
+		float check_frequency;
+
+		float period;
 };
 
 #endif
