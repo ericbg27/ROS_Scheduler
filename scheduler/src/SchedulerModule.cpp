@@ -44,7 +44,6 @@ void SchedulerModule::setUp() {
 	//Search for active modules and connect them to scheduler?
 
 	ros::NodeHandle param_handler("~"), scheduler_service_handler;
-
 	param_handler.getParam("frequency", frequency);
 	param_handler.getParam("monitor_frequency", monitor_frequency);
 	param_handler.getParam("control_type", control_type);
@@ -214,15 +213,12 @@ void SchedulerModule::run() {
 	std::thread thread1(&SchedulerModule::EDFSched, this);
 	std::thread thread2(&SchedulerModule::coordinateModules, this);
 	std::thread thread3(&SchedulerModule::checkForDeadlineUpdate, this);
+	std::thread thread4(&SchedulerModule::Monitor, this);
 
 	thread1.join();
 	thread2.join();
 	thread3.join();
-
-	if(control_type == 1) {
-		std::thread thread4(&SchedulerModule::Monitor, this);
-		thread4.join();
-	}
+	thread4.join();
 }
 
 void SchedulerModule::EDFSched() {
@@ -231,7 +227,6 @@ void SchedulerModule::EDFSched() {
 	ros::spinOnce();
 
 	while(ros::ok()) {
-
 		{
 			std::unique_lock< std::mutex > lk( _ready_queue_sync );
 			ready.wait(lk, [this]{return sync;});
@@ -423,7 +418,8 @@ void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::
         	if(!modules_iterator->second.executed_in_cycle) {
         		modules_iterator->second.failures += aux;
         	} else {
-        		modules_iterator->second.failures += aux;
+        		modules_iterator->second.failures += aux - 1;
+        		//modules_iterator->second.failures += aux; //Erro proposital
         	}
 
         	modules_iterator->second.jobs += aux;
@@ -550,7 +546,7 @@ void SchedulerModule::coordinateModules() {
 void SchedulerModule::Monitor() {
 	ros::Rate loop_rate(monitor_frequency);
 
-	while(ros::ok()) {
+	while(ros::ok() && control_type == 1) {
 
 		std::map<std::string, moduleParameters> aux;
 
@@ -563,11 +559,15 @@ void SchedulerModule::Monitor() {
 		std::map<std::string, int> priority_map;
 
 		for(modules_iterator = aux.begin();modules_iterator != aux.end();++modules_iterator) {
+
+			//std::cout << "Module total jobs: " << modules_iterator->second.jobs << std::endl;
+			//std::cout << "Module failures: " << modules_iterator->second.failures << std::endl;
+
 			miss_ratio_map[modules_iterator->first] = modules_iterator->second.miss_ratio_vector;
 			miss_ratio_map[modules_iterator->first].erase(miss_ratio_map[modules_iterator->first].begin());
 
 			if(modules_iterator->second.jobs > 0) {
-				miss_ratio_map[modules_iterator->first].push_back(modules_iterator->second.failures/modules_iterator->second.jobs);
+				miss_ratio_map[modules_iterator->first].push_back(100*modules_iterator->second.failures/modules_iterator->second.jobs);
 			} else {
 				miss_ratio_map[modules_iterator->first].push_back(0);
 			}
@@ -606,6 +606,7 @@ void SchedulerModule::Monitor() {
 			for(priority_iterator = priority_map.begin();priority_iterator != priority_map.end(); ++priority_iterator) {
 				if(connected_modules.find(priority_iterator->first) != connected_modules.end()) {
 					connected_modules[priority_iterator->first].priority = priority_iterator->second;
+					//std::cout << "Module: " << priority_iterator->first << " Priority: " << connected_modules[priority_iterator->first].priority << std::endl;
 				}
 			}
 
@@ -636,8 +637,12 @@ int SchedulerModule::PIDControl(std::vector<float> miss_ratio_vector, int actual
 		sum += miss_ratio_vector[size-1-i];
 	}
 
-	delta_priority = Kp*miss_ratio_vector[size-1] + Ki*sum + Kd*((miss_ratio_vector[size-1] - miss_ratio_vector[size-DW-1])/DW);
-
+	//std::cout << "size-1 element: " << miss_ratio_vector[size-1] << std::endl;
+	//std::cout << "size-1-DW element: " << miss_ratio_vector[size-DW-1] << std::endl;
+	
+	delta_priority = -Kp*miss_ratio_vector[size-1] - Ki*sum - Kd*((miss_ratio_vector[size-1] - miss_ratio_vector[size-DW-1])/DW);
+	
+	//std::cout << "delta_priority: " << delta_priority << std::endl;
 	new_priority = actual_priority + static_cast<int>(round(delta_priority));
 
 	if(new_priority < 0) {
