@@ -46,6 +46,10 @@ void TestModule::setUp() {
 	md.deadline = static_cast<uint32_t>(deadline_param);
 	md.wce = static_cast<uint32_t>(wce_param);
 
+	if (param_handler.getParam("priority", md.priority) == false) {
+		md.priority = 0;
+	}
+
 	md.connection = true;
 
 	services::SchedulerServerData srv;
@@ -54,6 +58,7 @@ void TestModule::setUp() {
 	srv.request.deadline = md.deadline;
 	srv.request.wce = md.wce;
 	srv.request.connection = md.connection;
+	srv.request.priority = md.priority;
 
 	if(client_module.call(srv)) {
 		ROS_INFO("Succesfully connected to scheduler.");

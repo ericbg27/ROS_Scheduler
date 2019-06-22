@@ -17,6 +17,7 @@ struct moduleDescriptor {
 	uint32_t deadline; //Microsseconds
 	uint32_t wce; //Microsseconds
 	bool connection;
+	int priority;
 };
 
 

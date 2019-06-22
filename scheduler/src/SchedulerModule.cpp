@@ -146,6 +146,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 			}
 
 			std::cout << "Module Connected. Name: " << req.name << std::endl;
+			std::cout << "Priority: " << req.priority << std::endl;
 			std::cout << "Scheduling Topic Name: " << topic_name << std::endl;
 			std::cout << "Scheduling Finish Topic Name: " << finish_topic_name << std::endl;
 		} else {
