@@ -61,36 +61,28 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 		std::string finish_topic_name = "";
 
 		if(req.connection == true) {
-			moduleParameters mp;
-			mp.frequency = req.frequency;
-			mp.relative_deadline = req.deadline;
-			mp.wce = req.wce;
-			mp.arrival_time = ros::Time::now();
+				ros::Time arrival_time = ros::Time::now();
 
-			uint32_t sum_microsseconds = static_cast<uint32_t>(mp.arrival_time.nsec/1000UL) + mp.relative_deadline;
-			uint32_t sum_seconds = mp.arrival_time.sec;
+				uint32_t sum_microsseconds = static_cast<uint32_t>(arrival_time.nsec/1000UL) + req.deadline;
+				uint32_t sum_seconds = arrival_time.sec;
 
-			while(sum_microsseconds >= 1000000UL) {
-				sum_seconds++;
-				sum_microsseconds -= 1000000UL;
-			}
+				while(sum_microsseconds >= 1000000UL) {
+					sum_seconds++;
+					sum_microsseconds -= 1000000UL;
+				}
 
-			ros::Time deadline(sum_seconds, sum_microsseconds*1000UL);
-			mp.absolute_deadline = deadline;
+				ros::Time abs_deadline(sum_seconds, sum_microsseconds*1000UL);
 
-			mp.executed_in_cycle = false;
-
-			mp.task_counter.resize(2);
-			mp.task_counter[0] = 0;
-			mp.task_counter[1] = -1;
-
-			topic_name = req.name.substr(1) + "topic";
-			mp.topic_name = topic_name;
-
-			finish_topic_name = topic_name + "_finish";
-			mp.finish_topic_name = finish_topic_name;
-
-			mp.active = false;
+				ModuleParameters mp(req.frequency,
+									 req.deadline,
+									 req.wce,
+									 arrival_time,
+									 abs_deadline,
+									 {{0,1}},
+									 req.name.substr(1) + "topic",
+									 req.name.substr(1) + "topic" + "_finish",
+									 false,
+									 false);
 
 			moduleSchedulingParameters mse;
 
@@ -110,7 +102,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 
 				scheduling_modules[req.name] = mse;
 
-				auto item = std::make_pair(req.name, mp.absolute_deadline);
+				auto item = std::make_pair(req.name, mp.getAbsoluteDeadline());
 				ready_queue.insert(item);
 
 				lock.unlock();
@@ -122,7 +114,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 			std::cout << "Scheduling Topic Name: " << topic_name << std::endl;
 			std::cout << "Scheduling Finish Topic Name: " << finish_topic_name << std::endl;
 		} else {
-			std::map<std::string,moduleParameters>::iterator modules_iterator;
+			std::map<std::string,ModuleParameters>::iterator modules_iterator;
 			modules_iterator = connected_modules.find(req.name);
 			
 			std::map<std::string,ros::Publisher>::iterator publisher_iterator;
@@ -166,10 +158,10 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 
 }
 
-void SchedulerModule::moduleFinishCallback(const messages::FinishMessage::ConstPtr& msg) {
+void SchedulerModule::moduleFinishCallback(const rs_messages::FinishMessage::ConstPtr& msg) {
 	
 	if(msg->name != "") {
-		if(connected_modules[msg->name].active == true) {
+		if(connected_modules[msg->name].isActive()) {
 			ros::Time aux(msg->sec,msg->nsec);
 			scheduler_record << "Finish scheduling module: " << msg->name << std::endl;
 			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(aux.toBoost()) << std::endl;
@@ -210,7 +202,7 @@ void SchedulerModule::EDFSched() {
 			//std::cout << "Getting ready queue element..." << std::endl;
 			std::set<std::pair<std::string, ros::Time>, Comparator>::iterator deadlines_it = ready_queue.begin();
 
-	        std::map<std::string, moduleParameters>::iterator modules_iterator;
+	        std::map<std::string, ModuleParameters>::iterator modules_iterator;
 
 	        modules_iterator = connected_modules.find(std::get<0>(*(deadlines_it)));
 
@@ -220,7 +212,7 @@ void SchedulerModule::EDFSched() {
 
 	        	bool invalid = false;
 
-	        	uint32_t sum_microsseconds = static_cast<uint32_t>(ros::Time::now().nsec/1000UL) + modules_iterator->second.wce;
+	        	uint32_t sum_microsseconds = static_cast<uint32_t>(ros::Time::now().nsec/1000UL) + modules_iterator->second.getWorstCaseExecutionTime();
 				uint32_t sum_seconds = ros::Time::now().sec;
 
 				while(sum_microsseconds >= 1000000UL && ros::ok()) {
@@ -237,10 +229,10 @@ void SchedulerModule::EDFSched() {
 	                    std::string name = modules_iterator->first;
 	           
 	                    //If the module is able to execute, choose it
-	                    if(modules_iterator->second.executed_in_cycle == false && modules_iterator->second.active == false) {
+	                    if(!modules_iterator->second.isExecutedInCycle() && !modules_iterator->second.isActive()) {
 	                                                
 	                    	scheduler_record << "Module Scheduled: " << name << std::endl;
-			                scheduler_record << "Deadline: " << boost::posix_time::to_iso_extended_string(connected_modules[name].absolute_deadline.toBoost()) << std::endl;
+			                scheduler_record << "Deadline: " << boost::posix_time::to_iso_extended_string(connected_modules[name].getAbsoluteDeadline().toBoost()) << std::endl;
 	                    	//std::cout << "Chosen Module: " << chosen_module.data << std::endl;
 
 	                    	{
@@ -266,14 +258,14 @@ void SchedulerModule::EDFSched() {
 
 		                    if(!invalid) {
 		                    	//std::cout << "Not invalid." << std::endl;
-		                    	modules_iterator->second.active = true;
+		                    	modules_iterator->second.setActive(true) ;
 
 		                    	ros::Time init = ros::Time::now();
 		                    	scheduler_record << "Initial Time: " << boost::posix_time::to_iso_extended_string(init.toBoost()) << std::endl << std::endl;
 		                    	ros::Duration diff = ros::Time::now() - init;
 
-		                    	sum_microsseconds = static_cast<uint32_t>(connected_modules[name].absolute_deadline.nsec/1000UL) - connected_modules[name].wce;
-				                sum_seconds = connected_modules[name].absolute_deadline.sec;
+		                    	sum_microsseconds = static_cast<uint32_t>(connected_modules[name].getAbsoluteDeadline().nsec/1000UL) - connected_modules[name].getWorstCaseExecutionTime();
+				                sum_seconds = connected_modules[name].getAbsoluteDeadline().sec;
 
 				                while(sum_microsseconds >= 1000000UL && ros::ok()) {
 									sum_seconds++;
@@ -318,12 +310,12 @@ void SchedulerModule::checkForDeadlineUpdate() {
             deleting.wait(lock, [this]{return deleting_sync;});
         }
 
-		std::map<std::string, moduleParameters>::iterator modules_iterator;
+		std::map<std::string, ModuleParameters>::iterator modules_iterator;
 
 	    for(modules_iterator = connected_modules.begin();modules_iterator != connected_modules.end();++modules_iterator) {
 
-	        uint32_t sum_microsseconds = static_cast<uint32_t>(modules_iterator->second.absolute_deadline.nsec/1000UL) - modules_iterator->second.relative_deadline + static_cast<uint32_t>((1/modules_iterator->second.frequency)*1000000UL)*(modules_iterator->second.task_counter[0] - modules_iterator->second.task_counter[1]);
-			uint32_t sum_seconds = modules_iterator->second.absolute_deadline.sec;
+	        uint32_t sum_microsseconds = static_cast<uint32_t>(modules_iterator->second.getAbsoluteDeadline().nsec/1000UL) - modules_iterator->second.getRelativeDeadline() + static_cast<uint32_t>((1/modules_iterator->second.getFrequency())*1000000UL)*(modules_iterator->second.getTaskCounter()[0] - modules_iterator->second.getTaskCounter()[1]);
+			uint32_t sum_seconds = modules_iterator->second.getAbsoluteDeadline().sec;
 
 			while(sum_microsseconds >= 1000000UL) {
 				sum_seconds++;
@@ -332,7 +324,7 @@ void SchedulerModule::checkForDeadlineUpdate() {
 
 			ros::Time module_next_arrival(sum_seconds, sum_microsseconds*1000UL);
 
-			if(ros::Time::now() >= module_next_arrival && modules_iterator->second.active == false) {
+			if(ros::Time::now() >= module_next_arrival && !modules_iterator->second.isActive()) {
 
 				sync = false;
 
@@ -347,7 +339,7 @@ void SchedulerModule::checkForDeadlineUpdate() {
 
 }
 
-void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::iterator modules_iterator, ros::Time module_next_arrival) {
+void SchedulerModule::updateParameters(std::map<std::string, ModuleParameters>::iterator modules_iterator, ros::Time module_next_arrival) {
 		//std::cout << "updating Parameters" << std::endl;
 		//std::cout << "Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
         ros::Duration difference;
@@ -356,19 +348,19 @@ void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::
 
         int aux;
 
-        aux = static_cast<int>((difference.sec*1000000UL + difference.nsec/1000UL)/((1/modules_iterator->second.frequency)*1000000UL));
+        aux = static_cast<int>((difference.sec*1000000UL + difference.nsec/1000UL)/((1/modules_iterator->second.getFrequency())*1000000UL));
 
         aux += 1;
 
-        modules_iterator->second.task_counter[1] = modules_iterator->second.task_counter[0];
-        modules_iterator->second.task_counter[0] += aux;
+        modules_iterator->second.setTaskCounter(modules_iterator->second.getTaskCounter()[0],1);
+        modules_iterator->second.setTaskCounter(modules_iterator->second.getTaskCounter()[0]+aux, 0);
 
-		uint32_t sum_seconds = modules_iterator->second.absolute_deadline.sec;
+		uint32_t sum_seconds = modules_iterator->second.getAbsoluteDeadline().sec;
         uint32_t d;
 
-        d = static_cast<uint32_t>((modules_iterator->second.task_counter[0] - modules_iterator->second.task_counter[1])*((1/modules_iterator->second.frequency)*1000000UL));
+        d = static_cast<uint32_t>((modules_iterator->second.getTaskCounter()[0] - modules_iterator->second.getTaskCounter()[1])*((1/modules_iterator->second.getFrequency())*1000000UL));
 
-        uint32_t sum_microsseconds = static_cast<uint32_t>(modules_iterator->second.absolute_deadline.nsec/1000UL) + d;
+        uint32_t sum_microsseconds = static_cast<uint32_t>(modules_iterator->second.getAbsoluteDeadline().nsec/1000UL) + d;
 
         while(sum_microsseconds >= 1000000UL) {
 			sum_seconds++;
@@ -380,9 +372,9 @@ void SchedulerModule::updateParameters(std::map<std::string, moduleParameters>::
 
         {
         	std::unique_lock< std::mutex > lk( _ready_queue_sync );
-        	modules_iterator->second.absolute_deadline = new_deadline;
-        	modules_iterator->second.executed_in_cycle = false;
-        	modules_iterator->second.task_counter[1] = modules_iterator->second.task_counter[0] - 1;
+        	modules_iterator->second.setAbsoluteDeadline(new_deadline);
+        	modules_iterator->second.setExecutedInCycle(false);
+        	modules_iterator->second.setTaskCounter(modules_iterator->second.getTaskCounter()[0] - 1, 1);
 
         	//std::cout << "Inserting in ready_queue" << std::endl;
         	std::pair<std::string, ros::Time> item = std::make_pair(modules_iterator->first, new_deadline);
@@ -410,13 +402,13 @@ void SchedulerModule::coordinateModules() {
 	unsigned int i = 0;
 
 	std::vector<std::string>::iterator finished_iterator;
-	std::map<std::string, moduleParameters>::iterator modules_iterator;
+	std::map<std::string, ModuleParameters>::iterator modules_iterator;
 
 	while( i < scheduling_queue.size() && ros::ok()) {
 		//std::cout << "Entering coordinateModules loop" << std::endl;
 		//std::cout << "Module name: " << scheduling_queue[i] << std::endl;
 
-		/*messages::FinishMessage msg;
+		/*rs_messages::FinishMessage msg;
         msg.name = "";
         msg.sec = 0;
         msg.nsec = 0;*/
@@ -453,8 +445,8 @@ void SchedulerModule::coordinateModules() {
 			modules_iterator = connected_modules.find(scheduling_queue[i]);
 
 		    if(modules_iterator != connected_modules.end()) {
-		        modules_iterator->second.executed_in_cycle = true;
-		        modules_iterator->second.active = false;
+		        modules_iterator->second.setExecutedInCycle(true);
+		        modules_iterator->second.setActive(false);
 		    }
 
 		    finished_modules.erase(finished_iterator);
@@ -484,8 +476,8 @@ void SchedulerModule::coordinateModules() {
 			    modules_iterator = connected_modules.find(scheduling_queue[i]);
 
 		        if(modules_iterator != connected_modules.end()) {
-		            modules_iterator->second.executed_in_cycle = true;
-		            modules_iterator->second.active = false;
+		            modules_iterator->second.setExecutedInCycle(true);
+		            modules_iterator->second.setActive(false);
 		        }
 
 		        scheduling_queue.erase(scheduling_queue.begin() + i);

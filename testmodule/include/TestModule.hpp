@@ -9,7 +9,7 @@
 #include "ros/ros.h"
 
 #include "services/SchedulerServerData.h"
-#include "messages/FinishMessage.h"
+#include "rs_messages/FinishMessage.h"
 
 struct moduleDescriptor {
 	std::string name;

@@ -66,7 +66,7 @@ void TestModule::setUp() {
     sched = scheduling_handler.subscribe(topic_name, 1, &TestModule::schedulingCallback, this);
 
     finish_topic_name = topic_name + "_finish";
-	scheduling_pub = finish_scheduling_handler.advertise<messages::FinishMessage>(finish_topic_name, 1);
+	scheduling_pub = finish_scheduling_handler.advertise<rs_messages::FinishMessage>(finish_topic_name, 1);
 }
 
 //void TestModule::tearDown() {}
@@ -91,7 +91,7 @@ void TestModule::run() {
 
 			ros::Time finish_time = ros::Time::now();
 
-			messages::FinishMessage msg;
+			rs_messages::FinishMessage msg;
 
 			msg.name = ros::this_node::getName();
 			msg.sec = finish_time.sec;
