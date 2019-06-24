@@ -170,11 +170,11 @@ void SchedulerModule::moduleFinishCallback(const messages::FinishMessage::ConstP
 	
 	if(msg->name != "") {
 		if(connected_modules[msg->name].active == true) {
-			ros::Time aux(msg->sec,msg->nsec);
+			//ros::Time aux(msg->sec,msg->nsec);
 			scheduler_record << "Finish scheduling module: " << msg->name << std::endl;
-			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(aux.toBoost()) << std::endl;
+			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
 			scheduler_record << "Received Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl << std::endl;
-			scheduling_modules[msg->name].finish_time = aux;
+			scheduling_modules[msg->name].finish_time = ros::Time::now();
 			finished_modules.push_back(msg->name);
 		}
 	}
