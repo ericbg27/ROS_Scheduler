@@ -52,7 +52,7 @@ ModuleParameters::ModuleParameters() :
 
 ModuleParameters::~ModuleParameters() {}
 
-const void ModuleParameters::setFrequency(const double &frequency){
+void ModuleParameters::setFrequency(const double &frequency){
     this->frequency = frequency;
 }
 
@@ -60,7 +60,7 @@ double ModuleParameters::getFrequency() const {
     return this->frequency;
 }
 
-const void ModuleParameters::setRelativeDeadline(const uint32_t &relative_deadline) {
+void ModuleParameters::setRelativeDeadline(const uint32_t &relative_deadline) {
     this->relative_deadline = relative_deadline;
 }
 
@@ -68,7 +68,7 @@ uint32_t ModuleParameters::getRelativeDeadline() const {
     return this->relative_deadline;
 }
 
-const void ModuleParameters::setWorstCaseExecutionTime(const uint32_t &wce) {
+void ModuleParameters::setWorstCaseExecutionTime(const uint32_t &wce) {
     this->wce = wce;
 }
 
@@ -76,7 +76,7 @@ uint32_t ModuleParameters::getWorstCaseExecutionTime() const {
     return this->wce;
 }
 
-const void ModuleParameters::setArrivalTime(const ros::Time &arrival_time) {
+void ModuleParameters::setArrivalTime(const ros::Time &arrival_time) {
     this->arrival_time = arrival_time;
 }
 
@@ -84,7 +84,7 @@ ros::Time ModuleParameters::getArrivalTime() const {
     return this->arrival_time;
 }
 
-const void ModuleParameters::setAbsoluteDeadline(const ros::Time &absolute_deadline) {
+void ModuleParameters::setAbsoluteDeadline(const ros::Time &absolute_deadline) {
     this->absolute_deadline = absolute_deadline;
 }
 
@@ -92,7 +92,7 @@ ros::Time ModuleParameters::getAbsoluteDeadline() const {
     return this->absolute_deadline;
 }
 
-const void ModuleParameters::setTaskCounter(const int &value, const int &position) {
+void ModuleParameters::setTaskCounter(const int &value, const int &position) {
     this->task_counter[position] = value;
 }
 
@@ -100,7 +100,7 @@ std::vector<int>  ModuleParameters::getTaskCounter() const {
     return this->task_counter;
 }
 
-const void ModuleParameters::setTopicName(const std::string  &topic_name) {
+void ModuleParameters::setTopicName(const std::string  &topic_name) {
     this->topic_name = topic_name;
 }
 
@@ -108,7 +108,7 @@ std::string  ModuleParameters::getTopicName() const {
     return this->topic_name;
 }
 
-const void ModuleParameters::setFinishTopicName(const std::string  &finish_topic_name) {
+void ModuleParameters::setFinishTopicName(const std::string  &finish_topic_name) {
     this->finish_topic_name = finish_topic_name;
 }
 
@@ -116,7 +116,7 @@ std::string  ModuleParameters::getFinishTopicName() const {
     return this->finish_topic_name;
 }
 
-const void ModuleParameters::setActive(const bool &active) {
+void ModuleParameters::setActive(const bool &active) {
     this->active = active;
 }
 
@@ -124,7 +124,7 @@ bool ModuleParameters::isActive() const {
     return this->active;
 }
 
-const void ModuleParameters::setExecutedInCycle(const bool  &executed_in_cycle) {
+void ModuleParameters::setExecutedInCycle(const bool  &executed_in_cycle) {
     this->executed_in_cycle = executed_in_cycle;
 }
 

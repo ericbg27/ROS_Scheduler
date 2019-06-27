@@ -2,6 +2,7 @@
 
 SchedulerModule::SchedulerModule(const int32_t &argc, char **argv) : 
 	connected_modules(),
+	scheduling_modules(),
 	frequency(5.0),
 	timeout(500),
 	scheduler_pub(),
@@ -24,6 +25,7 @@ SchedulerModule::SchedulerModule(const int32_t &argc, char **argv) :
 
 SchedulerModule::SchedulerModule() :
 	connected_modules(),
+	scheduling_modules(),
 	frequency(5.0),
 	timeout(500),
 	scheduler_pub(),
@@ -61,30 +63,30 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 		std::string finish_topic_name = "";
 
 		if(req.connection == true) {
-				ros::Time arrival_time = ros::Time::now();
+			ros::Time arrival_time = ros::Time::now();
 
-				uint32_t sum_microsseconds = static_cast<uint32_t>(arrival_time.nsec/1000UL) + req.deadline;
-				uint32_t sum_seconds = arrival_time.sec;
+			uint32_t sum_microsseconds = static_cast<uint32_t>(arrival_time.nsec/1000UL) + req.deadline;
+			uint32_t sum_seconds = arrival_time.sec;
 
-				while(sum_microsseconds >= 1000000UL) {
-					sum_seconds++;
-					sum_microsseconds -= 1000000UL;
-				}
+			while(sum_microsseconds >= 1000000UL) {
+				sum_seconds++;
+				sum_microsseconds -= 1000000UL;
+			}
 
-				ros::Time abs_deadline(sum_seconds, sum_microsseconds*1000UL);
+			ros::Time abs_deadline(sum_seconds, sum_microsseconds*1000UL);
 
-				ModuleParameters mp(req.frequency,
-									 req.deadline,
-									 req.wce,
-									 arrival_time,
-									 abs_deadline,
-									 {{0,1}},
-									 req.name.substr(1) + "topic",
-									 req.name.substr(1) + "topic" + "_finish",
-									 false,
-									 false);
+			ModuleParameters mp(req.frequency,
+									req.deadline,
+									req.wce,
+									arrival_time,
+									abs_deadline,
+									{{0,1}},
+									req.name.substr(1) + "topic",
+									req.name.substr(1) + "topic" + "_finish",
+									false,
+									false);
 
-			moduleSchedulingParameters mse;
+			ModuleSchedulingParameters mse;
 
 			{
 				std::unique_lock< std::mutex > lock( _modules_mutex );
@@ -166,7 +168,7 @@ void SchedulerModule::moduleFinishCallback(const rs_messages::FinishMessage::Con
 			scheduler_record << "Finish scheduling module: " << msg->name << std::endl;
 			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(aux.toBoost()) << std::endl;
 			scheduler_record << "Received Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl << std::endl;
-			scheduling_modules[msg->name].finish_time = aux;
+			scheduling_modules[msg->name].setFinishTime(aux);
 			finished_modules.push_back(msg->name);
 		}
 	}
@@ -274,9 +276,9 @@ void SchedulerModule::EDFSched() {
 
 				                ros::Time max_time(sum_seconds, sum_microsseconds*1000UL);
 
-				                scheduling_modules[name].init = init;
-				                scheduling_modules[name].diff = diff;
-				                scheduling_modules[name].max_time = max_time;
+				                scheduling_modules[name].setInit(init);
+				                scheduling_modules[name].setDiff(diff);
+				                scheduling_modules[name].setMaxTime(max_time);
 
 				                //std::cout << "Pushing to queue" << std::endl;
 		                    	scheduling_queue.push_back(name);
@@ -423,7 +425,7 @@ void SchedulerModule::coordinateModules() {
 			//std::cout << "max_time: " << boost::posix_time::to_iso_extended_string(scheduling_modules[scheduling_queue[i]].max_time.toBoost()) << std::endl;
 			//std::cout << "Module Name: " << scheduling_queue[i] << std::endl;
 
-			if(scheduling_modules[scheduling_queue[i]].finish_time > scheduling_modules[scheduling_queue[i]].max_time) {
+			if(scheduling_modules[scheduling_queue[i]].getFinishTime() > scheduling_modules[scheduling_queue[i]].getMaxTime()) {
 			    {
                     std::unique_lock< std::mutex > lock( _modules_mutex );
                     deleting.wait(lock, [this]{return deleting_sync;});
@@ -454,9 +456,9 @@ void SchedulerModule::coordinateModules() {
 
 		} else {
 
-			scheduling_modules[scheduling_queue[i]].diff = ros::Time::now() - scheduling_modules[scheduling_queue[i]].init;
+			scheduling_modules[scheduling_queue[i]].setDiff(ros::Time::now() - scheduling_modules[scheduling_queue[i]].getInit());
 
-			if(scheduling_modules[scheduling_queue[i]].diff >= timeout_time || ros::Time::now() > scheduling_modules[scheduling_queue[i]].max_time) {
+			if(scheduling_modules[scheduling_queue[i]].getDiff() >= timeout_time || ros::Time::now() > scheduling_modules[scheduling_queue[i]].getMaxTime()) {
 				scheduler_record << "Module Timeout" << std::endl;
 				scheduler_record << "Module Name: " << scheduling_queue[i] << std::endl;
 				scheduler_record << "Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl << std::endl;

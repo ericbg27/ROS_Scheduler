@@ -17,34 +17,34 @@ class ModuleParameters {
 		~ModuleParameters();
 
 	public:
-		const void setFrequency(const double &frequency);
+		void setFrequency(const double &frequency);
 		double getFrequency() const;
 
-		const void setRelativeDeadline(const uint32_t &relative_deadline);
+		void setRelativeDeadline(const uint32_t &relative_deadline);
 		uint32_t getRelativeDeadline() const;
 
-		const void setWorstCaseExecutionTime(const uint32_t &wce);
+		void setWorstCaseExecutionTime(const uint32_t &wce);
 		uint32_t getWorstCaseExecutionTime() const;
 
-		const void setArrivalTime(const ros::Time &arrival_time);
+		void setArrivalTime(const ros::Time &arrival_time);
 		ros::Time getArrivalTime() const;
 
-		const void setAbsoluteDeadline(const ros::Time &absolute_deadline);
+		void setAbsoluteDeadline(const ros::Time &absolute_deadline);
 		ros::Time getAbsoluteDeadline() const;
 
-		const void setTaskCounter(const int &value, const int &position);
+		void setTaskCounter(const int &value, const int &position);
 		std::vector<int>  getTaskCounter() const;
 
-		const void setTopicName(const std::string  &topic_name);
+		void setTopicName(const std::string  &topic_name);
 		std::string  getTopicName() const;
 
-		const void setFinishTopicName(const std::string  &finish_topic_name);
+		void setFinishTopicName(const std::string  &finish_topic_name);
 		std::string  getFinishTopicName() const;
 
-		const void setActive(const bool  &active);
+		void setActive(const bool  &active);
 		bool isActive() const;
 
-		const void setExecutedInCycle(const bool  &executed_in_cycle);
+		void setExecutedInCycle(const bool  &executed_in_cycle);
 		bool isExecutedInCycle() const;
 
 	private:

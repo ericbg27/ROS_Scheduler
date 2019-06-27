@@ -21,7 +21,7 @@
 #include "services/SchedulerServerData.h"
 #include "rs_messages/FinishMessage.h"
 #include "ModuleParameters.hpp"
-#include "ModuleSchedulingParameters.h"
+#include "ModuleSchedulingParameters.hpp"
 
 struct Comparator
 {
@@ -68,7 +68,7 @@ class SchedulerModule {
 	private:
 		std::map<std::string, ModuleParameters> connected_modules;
 
-		std::map<std::string, moduleSchedulingParameters> scheduling_modules;
+		std::map<std::string, ModuleSchedulingParameters> scheduling_modules;
 
 		float frequency;
 
