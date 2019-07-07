@@ -92,11 +92,11 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 				std::unique_lock< std::mutex > lock( _modules_mutex );
 				deleting_sync = false;
 
-				ros::Publisher pub = scheduler_topic_handler.advertise<std_msgs::String>(topic_name, 1);
+				ros::Publisher pub = scheduler_topic_handler.advertise<std_msgs::String>(mp.getTopicName(), 1);
 
 				scheduler_pub[req.name] = pub;
 
-				ros::Subscriber finish_sub = scheduling_finish_handler.subscribe(finish_topic_name, 1, &SchedulerModule::moduleFinishCallback, this);
+				ros::Subscriber finish_sub = scheduling_finish_handler.subscribe(mp.getFinishTopicName(), 1, &SchedulerModule::moduleFinishCallback, this);
 
 				schedule_finish[req.name] = finish_sub;
 
@@ -113,8 +113,11 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 			}
 
 			std::cout << "Module Connected. Name: " << req.name << std::endl;
-			std::cout << "Scheduling Topic Name: " << topic_name << std::endl;
-			std::cout << "Scheduling Finish Topic Name: " << finish_topic_name << std::endl;
+			std::cout << "Scheduling Topic Name: " << mp.getTopicName() << std::endl;
+			std::cout << "Scheduling Finish Topic Name: " << mp.getFinishTopicName() << std::endl;
+			std::cout << "Module Frequency: " << mp.getFrequency() << std::endl;
+			//std::cout << "Module Task Counter 0: " << mp.getTaskCounter()[0] << std::endl;
+			//std::cout << "Module Task Counter 1: " << mp.getTaskCounter()[1] << std::endl;
 		} else {
 			std::map<std::string,ModuleParameters>::iterator modules_iterator;
 			modules_iterator = connected_modules.find(req.name);
@@ -195,6 +198,7 @@ void SchedulerModule::EDFSched() {
 	ros::spinOnce();
 
 	while(ros::ok()) {
+		//std::cout << "[EDFSched] Scheduling..." << std::endl;
 
 		{
 			std::unique_lock< std::mutex > lk( _ready_queue_sync );
@@ -297,6 +301,7 @@ void SchedulerModule::EDFSched() {
 	    	}
 
 	    ros::spinOnce();
+	    //std::cout << "[EDFSched] Finished Scheduling..." << std::endl;
 	    loop_rate.sleep();
 	}
 
@@ -309,10 +314,12 @@ void SchedulerModule::checkForDeadlineUpdate() {
 	ros::Rate loop_rate(frequency);
 
 	while(ros::ok()) {
+		//std::cout << "[checkForDeadlineUpdate] Checking for Updates..." << std::endl;
 		{
             std::unique_lock< std::mutex > lock( _modules_mutex );
             deleting.wait(lock, [this]{return deleting_sync;});
         }
+        //std::cout << "[checkForDeadlineUpdate] Executing Check..." << std::endl;
 
 		std::map<std::string, ModuleParameters>::iterator modules_iterator;
 
@@ -338,6 +345,7 @@ void SchedulerModule::checkForDeadlineUpdate() {
 		}
 
 		//ros::spinOnce();
+		//std::cout << "[checkForDeadlineUpdate] Finished Checking for Updates..." << std::endl;
 		loop_rate.sleep();
 	}
 
@@ -346,6 +354,7 @@ void SchedulerModule::checkForDeadlineUpdate() {
 void SchedulerModule::updateParameters(std::map<std::string, ModuleParameters>::iterator modules_iterator, ros::Time module_next_arrival) {
 		//std::cout << "updating Parameters" << std::endl;
 		//std::cout << "Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
+		//std::cout << "[updateParameters] Updating Parameters..." << std::endl;
         ros::Duration difference;
 
         difference = ros::Time::now() - module_next_arrival;
@@ -394,6 +403,8 @@ void SchedulerModule::updateParameters(std::map<std::string, ModuleParameters>::
         	lk.unlock();
         }
 
+        //std::cout << "[updateParameters] Finished Updating Parameters..." << std::endl;
+
 }
 
 void SchedulerModule::coordinateModules() {
@@ -403,6 +414,7 @@ void SchedulerModule::coordinateModules() {
 	//ros::spinOnce();
 
 	while(ros::ok()) {
+	//std::cout << "[coordinateModules] Checking Modules..." << std::endl;
 	unsigned int i = 0;
 
 	std::vector<std::string>::iterator finished_iterator;
@@ -493,6 +505,7 @@ void SchedulerModule::coordinateModules() {
 		}
 	}
 	//ros::spinOnce();
+	//std::cout << "[coordinateModules] Finished Checking Modules..." << std::endl;
 	loop_rate.sleep();
 	}
 }

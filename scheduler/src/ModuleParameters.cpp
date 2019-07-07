@@ -10,7 +10,8 @@ ModuleParameters::ModuleParameters(const double &frequency, const uint32_t &rela
     topic_name(topic_name),
     finish_topic_name(finish_topic_name),
     active(active),
-    executed_in_cycle(executed_in_cycle) {}
+    executed_in_cycle(executed_in_cycle) {
+    }
 
 ModuleParameters::ModuleParameters(const ModuleParameters &obj) :
     frequency(obj.getFrequency()),
@@ -30,6 +31,7 @@ ModuleParameters& ModuleParameters::operator=(const ModuleParameters &obj) {
     this->wce = obj.getWorstCaseExecutionTime();
     this->arrival_time = obj.getArrivalTime();
     this->absolute_deadline = obj.getAbsoluteDeadline();
+    this->task_counter = obj.getTaskCounter();
     this->topic_name = obj.getTopicName();
     this->finish_topic_name = obj.getFinishTopicName();
     this->active = obj.isActive();
