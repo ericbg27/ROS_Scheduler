@@ -80,7 +80,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 									req.wce,
 									arrival_time,
 									abs_deadline,
-									{{0,1}},
+									{{0,-1}},
 									req.name.substr(1) + "topic",
 									req.name.substr(1) + "topic" + "_finish",
 									false,
@@ -165,9 +165,11 @@ void SchedulerModule::moduleFinishCallback(const rs_messages::FinishMessage::Con
 	if(msg->name != "") {
 		if(connected_modules[msg->name].isActive()) {
 			ros::Time aux(msg->sec,msg->nsec);
+
 			scheduler_record << "Finish scheduling module: " << msg->name << std::endl;
-			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(aux.toBoost()) << std::endl;
+			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
 			scheduler_record << "Received Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl << std::endl;
+
 			scheduling_modules[msg->name].setFinishTime(aux);
 			finished_modules.push_back(msg->name);
 		}
