@@ -19,9 +19,9 @@
 //#include <ros/callback_queue.h>
 
 #include "services/SchedulerServerData.h"
-#include "messages/FinishMessage.h"
-#include "ModuleParameters.h"
-#include "ModuleSchedulingParameters.h"
+#include "rs_messages/FinishMessage.h"
+#include "ModuleParameters.hpp"
+#include "ModuleSchedulingParameters.hpp"
 
 struct Comparator
 {
@@ -50,7 +50,7 @@ class SchedulerModule {
 		void EDFSched(/*std::map<std::string,ros::Publisher> &scheduler_pub*/);
 
 		void checkForDeadlineUpdate();
-		void updateParameters(std::map<std::string, moduleParameters>::iterator modules_iterator, ros::Time module_next_arrival);
+		void updateParameters(std::map<std::string, ModuleParameters>::iterator modules_iterator, ros::Time module_next_arrival);
 
 		SchedulerModule(const int32_t &argc, char **argv);
 
@@ -58,7 +58,7 @@ class SchedulerModule {
 		
 		virtual ~SchedulerModule();
 
-		void moduleFinishCallback(const messages::FinishMessage::ConstPtr& msg);
+		void moduleFinishCallback(const rs_messages::FinishMessage::ConstPtr& msg);
 		//void moduleFinishCallback(const std_msgs::StringConstPtr& msg);
 
 		void run();
@@ -66,9 +66,9 @@ class SchedulerModule {
 		void coordinateModules();
 
 	private:
-		std::map<std::string, moduleParameters> connected_modules;
+		std::map<std::string, ModuleParameters> connected_modules;
 
-		std::map<std::string, moduleSchedulingParameters> scheduling_modules;
+		std::map<std::string, ModuleSchedulingParameters> scheduling_modules;
 
 		float frequency;
 

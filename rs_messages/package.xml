@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>messages</name>
+  <name>rs_messages</name>
   <version>0.0.0</version>
   <description>The messages package</description>
 
