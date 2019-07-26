@@ -94,6 +94,9 @@ void ModuleTemplate::setUp() {
 		ROS_ERROR("Failed to connect to scheduler.");
 	}
 
+	//Defining module's execution minimum checking period
+	period = static_cast<float>(md.deadline)/1000000.0;
+
 	ros::NodeHandle scheduling_handler, finish_scheduling_handler;
 
 	//Subscrbing to this module's scheduling topic
@@ -101,7 +104,8 @@ void ModuleTemplate::setUp() {
     sched = scheduling_handler.subscribe(topic_name, 1, &ModuleTemplate::schedulingCallback, this);
 
     //Publishing in finish topic, which indicates end of module's execution
-	scheduling_pub = finish_scheduling_handler.advertise<std_msgs::String>("scheduling_finish", 1);
+    finish_topic_name = topic_name + "_finish";
+	scheduling_pub = finish_scheduling_handler.advertise<messages::FinishMessage>(finish_topic_name = topic_name + "_finish";, 1);
 
 	/*****************************************************************************************************************************/
 	
@@ -130,9 +134,6 @@ void ModuleTemplate::run() {
 	@param: None
 	*********************************************************************************/
 
-	//Defining module's execution minimum checking period
-	float period = static_cast<float>(md.deadline)/1000000.0;
-
 	//Defining checking frequency
 	//Note: By default it is 2/period
 	//Note2: The bigger check_frequency is, higher the granularity
@@ -150,9 +151,13 @@ void ModuleTemplate::run() {
 			Custom functionality comes here
 			*******************************/
 
-			std_msgs::String msg;
+			ros::Time finish_time = ros::Time::now();
 
-			msg.data = md.name;
+			messages::FinishMessage msg;
+
+			msg.name = ros::this_node::getName();
+			msg.sec = finish_time.sec;
+			msg.nsec = finish_time.nsec;
 
 			//Publishing in scheduling_finish topic
 			scheduling_pub.publish(msg);

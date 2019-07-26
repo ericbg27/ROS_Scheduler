@@ -9,6 +9,7 @@
 #include "ros/ros.h"
 
 #include "services/SchedulerServerData.h"
+#include "messages/FinishMessage.h"
 
 struct moduleDescriptor {
 	std::string name;
@@ -54,7 +55,11 @@ class ModuleTemplate {
 
 		std::string topic_name;
 
+		std::string finish_topic_name;
+
 		float check_frequency;
+
+		float period;
 };
 
 #endif

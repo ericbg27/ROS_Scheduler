@@ -3,11 +3,13 @@
 #include <string>
 #include <vector>
 #include <signal.h>
+#include "boost/date_time/posix_time/posix_time.hpp"
 
 #include "std_msgs/String.h"
 #include "ros/ros.h"
 
 #include "services/SchedulerServerData.h"
+#include "rs_messages/FinishMessage.h"
 
 struct moduleDescriptor {
 	std::string name;
@@ -24,9 +26,7 @@ class TestModule {
 		TestModule(const TestModule &);
 		TestModule &operator=(const TestModule &);
 
-		//virtual void tearDown();
 		void schedulingCallback(const std_msgs::StringConstPtr& msg);
-
 	public:
 
 		virtual void setUp();
@@ -51,6 +51,9 @@ class TestModule {
 		ros::ServiceClient client_module;
 
 		std::string topic_name;
+
+		std::string finish_topic_name;
+
 };
 
 #endif
