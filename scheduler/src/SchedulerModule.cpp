@@ -3,8 +3,8 @@
 SchedulerModule::SchedulerModule(const int32_t &argc, char **argv) : 
 	connected_modules(),
 	scheduling_modules(),
-	frequency(5.0),
-	timeout(500),
+	frequency(1),
+	timeout(100),
 	scheduler_pub(),
 	scheduler_record(),
 	sync(true),
@@ -26,8 +26,8 @@ SchedulerModule::SchedulerModule(const int32_t &argc, char **argv) :
 SchedulerModule::SchedulerModule() :
 	connected_modules(),
 	scheduling_modules(),
-	frequency(5.0),
-	timeout(500),
+	frequency(1),
+	timeout(100),
 	scheduler_pub(),
 	scheduler_record() {}
 	
@@ -252,10 +252,10 @@ void SchedulerModule::EDFSched() {
 	                    	publisher_iterator = scheduler_pub.find(name);
 
 	                    	if(publisher_iterator != scheduler_pub.end()) {
-
 	                    		std_msgs::String chosen_module;
 	                    		chosen_module.data = name;
 
+								ROS_INFO("msg.data: [%s]", chosen_module.data.c_str());
 			                   	scheduler_pub[name].publish(chosen_module);
 			                } else {
 			                    std::cout << std::endl;
