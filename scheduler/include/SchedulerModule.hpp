@@ -18,8 +18,8 @@
 #include "ros/ros.h"
 //#include <ros/callback_queue.h>
 
-#include "services/SchedulerServerData.h"
-#include "messages/Finish.h"
+#include "services/SchedulerRegister.h"
+#include "messages/Event.h"
 #include "messages/ReconfigurationCommand.h"
 #include "ModuleParameters.hpp"
 #include "ModuleSchedulingParameters.hpp"
@@ -44,7 +44,7 @@ class SchedulerModule {
 	public:
 		virtual void setUp();
 
-		bool moduleConnect(services::SchedulerServerData::Request &req, services::SchedulerServerData::Response &res);
+		bool moduleConnect(services::SchedulerRegister::Request &req, services::SchedulerRegister::Response &res);
 
 		std::set<std::pair<std::string, ros::Time>, Comparator> deadlinesSetCreation();
 
@@ -59,7 +59,7 @@ class SchedulerModule {
 		
 		virtual ~SchedulerModule();
 
-		void moduleFinishCallback(const messages::Finish::ConstPtr& msg);
+		void receiveEvent(const messages::Event::ConstPtr& msg);
 
 		void run();
 

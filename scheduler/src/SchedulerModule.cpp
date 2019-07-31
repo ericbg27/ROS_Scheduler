@@ -48,9 +48,9 @@ void SchedulerModule::setUp() {
 
 	timeout_time = timeout_time_aux;
 
-	scheduler_service = scheduler_service_handler.advertiseService("ModuleManagement", &SchedulerModule::moduleConnect, this);
+	scheduler_service = scheduler_service_handler.advertiseService("SchedulerRegister", &SchedulerModule::moduleConnect, this);
 	schedule_pub = scheduler_topic_handler.advertise<messages::ReconfigurationCommand>("log_reconfigure", 1);
-	finish_sub = scheduling_finish_handler.subscribe("task_finished", 1, &SchedulerModule::moduleFinishCallback, this);
+	finish_sub = scheduling_finish_handler.subscribe("event", 1, &SchedulerModule::receiveEvent, this);
 	
 	ros::spinOnce();
 }
@@ -59,7 +59,7 @@ void SchedulerModule::tearDown() {
 	scheduler_record.close();
 }
 
-bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req, services::SchedulerServerData::Response &res) {
+bool SchedulerModule::moduleConnect(services::SchedulerRegister::Request &req, services::SchedulerRegister::Response &res) {
 
 	try {
 		//std::string topic_name = "";
@@ -99,7 +99,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 
 				//schedule_pub[req.name] = pub;
 
-				//ros::Subscriber finish_sub = scheduling_finish_handler.subscribe(mp.getFinishTopicName(), 1, &SchedulerModule::moduleFinishCallback, this);
+				//ros::Subscriber finish_sub = scheduling_finish_handler.subscribe(mp.getFinishTopicName(), 1, &SchedulerModule::receiveEvent, this);
 
 				//schedule_finish[req.name] = finish_sub;
 
@@ -166,18 +166,19 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 
 }
 
-void SchedulerModule::moduleFinishCallback(const messages::Finish::ConstPtr& msg) {
+void SchedulerModule::receiveEvent(const messages::Event::ConstPtr& msg) {
 	
-	if(msg->module_name != "") {
-		if(connected_modules[msg->module_name].isActive()) {
-			ros::Time aux(msg->sec,msg->nsec);
+	if(msg->type != "finish") {
+		if(connected_modules[msg->source].isActive()) {
+			/* Oh no! Disctinct nodes distinct time references!!!!!!!!!!!!! (since we do not presume global clock)*/
+			//ros::Time aux(msg->sec,msg->nsec);
 
-			scheduler_record << "Finish scheduling module: " << msg->module_name << std::endl;
+			scheduler_record << "Finish scheduling module: " << msg->source << std::endl;
 			scheduler_record << "Finish Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl;
 			scheduler_record << "Received Time: " << boost::posix_time::to_iso_extended_string(ros::Time::now().toBoost()) << std::endl << std::endl;
 
-			scheduling_modules[msg->module_name].setFinishTime(aux);
-			finished_modules.push_back(msg->module_name);
+			scheduling_modules[msg->source].setFinishTime(ros::Time::now());
+			finished_modules.push_back(msg->source);
 		}
 	}
 	
@@ -259,7 +260,7 @@ void SchedulerModule::EDFSched() {
 									messages::ReconfigurationCommand reconfig;
 									reconfig.command = name;
 
-									ROS_INFO("msg->module_name: [%s]", reconfig.command.c_str());
+									ROS_INFO("msg->source: [%s]", reconfig.command.c_str());
 									schedule_pub[name].publish(reconfig);
 								} else {
 									std::cout << std::endl;
