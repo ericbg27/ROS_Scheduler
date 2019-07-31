@@ -199,10 +199,10 @@ void SchedulerModule::run() {
 void SchedulerModule::EDFSched() {
 
 	ros::Rate loop_rate(frequency);
-	ros::spinOnce();
+	//ros::spinOnce();
 
 	while(ros::ok()) {
-		//std::cout << "[EDFSched] Scheduling..." << std::endl;
+		ROS_INFO("[EDFSched] Scheduling...");
 
 		{
 			std::unique_lock< std::mutex > lk( _ready_queue_sync );
@@ -211,7 +211,7 @@ void SchedulerModule::EDFSched() {
 
 		if(ready_queue.size() > 0) {
 
-			//std::cout << "Getting ready queue element..." << std::endl;
+			ROS_INFO("Getting ready queue element...");
 			std::set<std::pair<std::string, ros::Time>, Comparator>::iterator deadlines_it = ready_queue.begin();
 
 	        std::map<std::string, ModuleParameters>::iterator modules_iterator;
@@ -219,7 +219,7 @@ void SchedulerModule::EDFSched() {
 	        modules_iterator = connected_modules.find(std::get<0>(*(deadlines_it)));
 
 	        ready_queue.erase(deadlines_it);
-	        //std::cout << "Erase ready queue element..." << std::endl;
+	        ROS_INFO("Erase ready queue element...");
 	        if(modules_iterator != connected_modules.end()) {
 
 	        	bool invalid = false;
@@ -300,8 +300,9 @@ void SchedulerModule::EDFSched() {
 
 	                    	if(it != connected_modules.end()) {
 	                    		messages::ReconfigurationCommand reconfig;
-	                    		reconfig.action = "execute";
+	                    		reconfig.source = ros::this_node::getName();
 								reconfig.target = name;
+	                    		reconfig.action = "execute";
 
 			                   	schedule_pub.publish(reconfig);
 
@@ -345,7 +346,7 @@ void SchedulerModule::EDFSched() {
 	    	}
 
 	    ros::spinOnce();
-	    //std::cout << "[EDFSched] Finished Scheduling..." << std::endl;
+	    ROS_INFO("[EDFSched] Finished Scheduling...");
 	    loop_rate.sleep();
 	}
 
@@ -473,8 +474,9 @@ void SchedulerModule::coordinateModules() {
         msg.sec = 0;
         msg.nsec = 0;*/
         messages::ReconfigurationCommand reconfig;
-        reconfig.action = "";
+        reconfig.source = ros::this_node::getName();
         reconfig.target = "";
+        reconfig.action = "";
 
         //bool invalid = false;
 
