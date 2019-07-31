@@ -20,7 +20,7 @@
 
 #include "services/SchedulerServerData.h"
 #include "messages/Finish.h"
-#include "messages/Init.h"
+#include "messages/ReconfigurationCommand.h"
 #include "ModuleParameters.hpp"
 #include "ModuleSchedulingParameters.hpp"
 

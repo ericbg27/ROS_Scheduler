@@ -49,7 +49,7 @@ void SchedulerModule::setUp() {
 	timeout_time = timeout_time_aux;
 
 	scheduler_service = scheduler_service_handler.advertiseService("ModuleManagement", &SchedulerModule::moduleConnect, this);
-	schedule_pub = scheduler_topic_handler.advertise<messages::Init>("schedule_task", 1);
+	schedule_pub = scheduler_topic_handler.advertise<messages::ReconfigurationCommand>("log_reconfigure", 1);
 	finish_sub = scheduling_finish_handler.subscribe("task_finished", 1, &SchedulerModule::moduleFinishCallback, this);
 	
 	ros::spinOnce();
@@ -95,7 +95,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerServerData::Request &req,
 				std::unique_lock< std::mutex > lock( _modules_mutex );
 				deleting_sync = false;
 
-				//ros::Publisher pub = scheduler_topic_handler.advertise<messages::Init>(mp.getTopicName(), 1);
+				//ros::Publisher pub = scheduler_topic_handler.advertise<messages::ReconfigurationCommand>(mp.getTopicName(), 1);
 
 				//schedule_pub[req.name] = pub;
 
@@ -244,7 +244,7 @@ void SchedulerModule::EDFSched() {
 	                                                
 	                    	scheduler_record << "Module Scheduled: " << name << std::endl;
 			                scheduler_record << "Deadline: " << boost::posix_time::to_iso_extended_string(connected_modules[name].getAbsoluteDeadline().toBoost()) << std::endl;
-	                    	//std::cout << "Chosen Module: " << init_msg.module_name << std::endl;
+	                    	//std::cout << "Chosen Module: " << reconfig.command << std::endl;
 
 	                    	{
 	                    		std::unique_lock< std::mutex > lock( _modules_mutex );
@@ -256,11 +256,11 @@ void SchedulerModule::EDFSched() {
 								publisher_iterator = schedule_pub.find(name);
 
 								if(publisher_iterator != schedule_pub.end()) {
-									messages::Init init_msg;
-									init_msg.module_name = name;
+									messages::ReconfigurationCommand reconfig;
+									reconfig.command = name;
 
-									ROS_INFO("msg->module_name: [%s]", init_msg.module_name.c_str());
-									schedule_pub[name].publish(init_msg);
+									ROS_INFO("msg->module_name: [%s]", reconfig.command.c_str());
+									schedule_pub[name].publish(reconfig);
 								} else {
 									std::cout << std::endl;
 									std::cout << "Module " << name << " is disconnected! Scheduling next module." << std::endl;
@@ -298,11 +298,11 @@ void SchedulerModule::EDFSched() {
 	                    	it = connected_modules.find(name);
 
 	                    	if(it != connected_modules.end()) {
-	                    		messages::Init init_msg;
-	                    		init_msg.module_name = name;
+	                    		messages::ReconfigurationCommand reconfig;
+	                    		reconfig.action = "execute";
+								reconfig.target = name;
 
-								ROS_INFO("msg->module_name: [%s]", init_msg.module_name.c_str());
-			                   	schedule_pub.publish(init_msg);
+			                   	schedule_pub.publish(reconfig);
 
 								modules_iterator->second.setActive(true) ;
 
@@ -471,8 +471,9 @@ void SchedulerModule::coordinateModules() {
         msg.name = "";
         msg.sec = 0;
         msg.nsec = 0;*/
-        messages::Init init_msg;
-        init_msg.module_name = "";
+        messages::ReconfigurationCommand reconfig;
+        reconfig.action = "";
+        reconfig.target = "";
 
         //bool invalid = false;
 
@@ -493,7 +494,7 @@ void SchedulerModule::coordinateModules() {
 	   			publisher_iterator = schedule_pub.find(scheduling_queue[i]);
 
 	            if(publisher_iterator != schedule_pub.end()) {
-			        schedule_pub[scheduling_queue[i]].publish(init_msg);
+			        schedule_pub[scheduling_queue[i]].publish(reconfig);
 			    } else {
 			        invalid = true;
 			    }
@@ -509,7 +510,7 @@ void SchedulerModule::coordinateModules() {
 		        modules_iterator->second.setExecutedInCycle(true);
 		        modules_iterator->second.setActive(false);
 				
-				schedule_pub.publish(init_msg);
+				schedule_pub.publish(reconfig);
 		    }
 
 		    finished_modules.erase(finished_iterator);
@@ -530,7 +531,7 @@ void SchedulerModule::coordinateModules() {
 	   				publisher_iterator = schedule_pub.find(scheduling_queue[i]);
 
 	                if(publisher_iterator != schedule_pub.end()) {
-			            schedule_pub[scheduling_queue[i]].publish(init_msg);
+			            schedule_pub[scheduling_queue[i]].publish(reconfig);
 						
 			        }
 					*/
@@ -542,7 +543,7 @@ void SchedulerModule::coordinateModules() {
 		            modules_iterator->second.setExecutedInCycle(true);
 		            modules_iterator->second.setActive(false);
 
-					schedule_pub.publish(init_msg);
+					schedule_pub.publish(reconfig);
 		        }
 
 		        scheduling_queue.erase(scheduling_queue.begin() + i);
