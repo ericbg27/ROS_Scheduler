@@ -19,7 +19,8 @@
 //#include <ros/callback_queue.h>
 
 #include "services/SchedulerServerData.h"
-#include "rs_messages/FinishMessage.h"
+#include "messages/Finish.h"
+#include "messages/Init.h"
 #include "ModuleParameters.hpp"
 #include "ModuleSchedulingParameters.hpp"
 
@@ -58,8 +59,7 @@ class SchedulerModule {
 		
 		virtual ~SchedulerModule();
 
-		void moduleFinishCallback(const rs_messages::FinishMessage::ConstPtr& msg);
-		//void moduleFinishCallback(const std_msgs::StringConstPtr& msg);
+		void moduleFinishCallback(const messages::Finish::ConstPtr& msg);
 
 		void run();
 
@@ -74,13 +74,15 @@ class SchedulerModule {
 
 		uint32_t timeout; //timeout in milisseconds
 
-		std::map<std::string,ros::Publisher> scheduler_pub;
+		//std::map<std::string,ros::Publisher> scheduler_pub;
+		ros::Publisher schedule_pub;
 
 		std::vector<std::string> finished_modules;
 
 		ros::ServiceServer scheduler_service;
 
-		std::map<std::string, ros::Subscriber> schedule_finish;
+		//std::map<std::string, ros::Subscriber> schedule_finish;
+		ros::Subscriber finish_sub;
 
 		std::mutex _modules_mutex, _ready_queue_sync;
 
