@@ -16,7 +16,6 @@
 #include "std_msgs/String.h"
 
 #include "ros/ros.h"
-//#include <ros/callback_queue.h>
 
 #include "services/SchedulerRegister.h"
 #include "messages/Event.h"
@@ -37,7 +36,7 @@ class SchedulerModule {
 
 	private:
 		SchedulerModule(const SchedulerModule &);
-		SchedulerModule &operator=(const SchedulerModule &); //Talvez inútil
+		SchedulerModule &operator=(const SchedulerModule &);
 
 		virtual void tearDown();
 
@@ -48,7 +47,7 @@ class SchedulerModule {
 
 		std::set<std::pair<std::string, ros::Time>, Comparator> deadlinesSetCreation();
 
-		void EDFSched(/*std::map<std::string,ros::Publisher> &scheduler_pub*/);
+		void EDFSched();
 
 		void checkForDeadlineUpdate();
 		void updateParameters(std::map<std::string, ModuleParameters>::iterator modules_iterator, ros::Time module_next_arrival);
@@ -74,14 +73,12 @@ class SchedulerModule {
 
 		uint32_t timeout; //timeout in milisseconds
 
-		//std::map<std::string,ros::Publisher> scheduler_pub;
 		ros::Publisher schedule_pub;
 
 		std::vector<std::string> finished_modules;
 
 		ros::ServiceServer scheduler_service;
 
-		//std::map<std::string, ros::Subscriber> schedule_finish;
 		ros::Subscriber finish_sub;
 
 		std::mutex _modules_mutex, _ready_queue_sync;
@@ -92,8 +89,6 @@ class SchedulerModule {
 
 		std::vector<std::string> scheduling_queue;
 
-		//std::vector<std::string> ready_queue;
-
 		ros::Duration timeout_time;
 
 		std::condition_variable ready, deleting;
@@ -101,10 +96,6 @@ class SchedulerModule {
 		bool sync, deleting_sync;
 
 		std::set<std::pair<std::string, ros::Time>, Comparator> ready_queue;
-
-		//std::thread thread1();
-
-		//std::thread thread2();
 };
 
 #endif
