@@ -9,7 +9,7 @@
 class ModuleParameters {
 
 	public:
-		ModuleParameters(const double &frequency, const uint32_t &relative_deadline, const uint32_t &wce, const ros::Time &arrival_time, const ros::Time &absolute_deadline, const std::vector<int> &task_counter, const std::string &topic_name, const std::string &finish_topic_name, const bool &active, const bool &executed_in_cycle);
+		ModuleParameters(const double &frequency, const uint32_t &relative_deadline, const uint32_t &wce, const ros::Time &arrival_time, const ros::Time &absolute_deadline, const std::vector<int> &task_counter, const std::string &topic_name, const std::string &finish_topic_name, const bool &active, const bool &executed_in_cycle, const int &priority);
 		ModuleParameters(const ModuleParameters &);
 		ModuleParameters &operator=(const ModuleParameters &);
 
@@ -47,17 +47,21 @@ class ModuleParameters {
 		void setExecutedInCycle(const bool  &executed_in_cycle);
 		bool isExecutedInCycle() const;
 
+		void setPriority(const int  &priority);
+		int getPriority() const;
+
 	private:
 		double frequency;
 		uint32_t relative_deadline; //Microsseconds
 		uint32_t wce; //Microsseconds
-		ros::Time arrival_time; //Atualizar para std::chrono
+		ros::Time arrival_time; 
 		ros::Time absolute_deadline;
 		std::vector<int> task_counter;
 		std::string topic_name;
 		std::string finish_topic_name;
 		bool active;
 		bool executed_in_cycle;
+		int priority;
 };
 
 #endif

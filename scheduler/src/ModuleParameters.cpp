@@ -1,6 +1,6 @@
 #include "ModuleParameters.hpp"
 
-ModuleParameters::ModuleParameters(const double &frequency, const uint32_t &relative_deadline, const uint32_t &wce, const ros::Time &arrival_time, const ros::Time &absolute_deadline, const std::vector<int> &task_counter, const std::string &topic_name, const std::string &finish_topic_name, const bool &active, const bool &executed_in_cycle) : 
+ModuleParameters::ModuleParameters(const double &frequency, const uint32_t &relative_deadline, const uint32_t &wce, const ros::Time &arrival_time, const ros::Time &absolute_deadline, const std::vector<int> &task_counter, const std::string &topic_name, const std::string &finish_topic_name, const bool &active, const bool &executed_in_cycle,  const int &priority) : 
 	frequency(frequency),
 	relative_deadline(relative_deadline),
 	wce(wce),
@@ -10,7 +10,8 @@ ModuleParameters::ModuleParameters(const double &frequency, const uint32_t &rela
     topic_name(topic_name),
     finish_topic_name(finish_topic_name),
     active(active),
-    executed_in_cycle(executed_in_cycle) {
+    executed_in_cycle(executed_in_cycle),
+    priority(priority) {
     }
 
 ModuleParameters::ModuleParameters(const ModuleParameters &obj) :
@@ -23,7 +24,8 @@ ModuleParameters::ModuleParameters(const ModuleParameters &obj) :
     topic_name(obj.getTopicName()),
     finish_topic_name(obj.getFinishTopicName()),
     active(obj.isActive()),
-    executed_in_cycle(obj.isExecutedInCycle()) {}
+    executed_in_cycle(obj.isExecutedInCycle()),
+    priority(obj.getPriority()) {}
 
 ModuleParameters& ModuleParameters::operator=(const ModuleParameters &obj) {
     this->frequency = obj.getFrequency();
@@ -36,6 +38,7 @@ ModuleParameters& ModuleParameters::operator=(const ModuleParameters &obj) {
     this->finish_topic_name = obj.getFinishTopicName();
     this->active = obj.isActive();
     this->executed_in_cycle = obj.isExecutedInCycle();
+    this->priority = obj.getPriority();
 
     return (*this);
 }
@@ -50,7 +53,8 @@ ModuleParameters::ModuleParameters() :
     topic_name(),
     finish_topic_name(),
     active(),
-    executed_in_cycle() {}
+    executed_in_cycle(),
+    priority() {}
 
 ModuleParameters::~ModuleParameters() {}
 
@@ -132,4 +136,12 @@ void ModuleParameters::setExecutedInCycle(const bool  &executed_in_cycle) {
 
 bool ModuleParameters::isExecutedInCycle() const {
     return this->executed_in_cycle;
+}
+
+void ModuleParameters::setPriority(const int  &priority) {
+    this->priority = priority;
+}
+
+int  ModuleParameters::getPriority() const {
+    return this->priority;
 }

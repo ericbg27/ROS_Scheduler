@@ -6,6 +6,7 @@
 #include <mutex>
 #include <fstream>
 #include <thread>
+#include <tuple>
 
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <unistd.h>
@@ -25,9 +26,13 @@
 
 struct Comparator
 {
-	bool operator()(std::pair<std::string, ros::Time> D1, std::pair<std::string, ros::Time> D2) {
-		if(D1.first == D2.first || D1.first != D2.first) {
-    		return D1.second < D2.second;
+	bool operator()(std::tuple<std::string, ros::Time, int> D1, std::tuple<std::string, ros::Time, int> D2) {
+		if(std::get<0>(D1) == std::get<0>(D2)|| std::get<0>(D1) != std::get<0>(D2)) {
+			if(std::get<2>(D1) != std::get<2>(D2)) {
+    			return std::get<2>(D1) < std::get<2>(D2);
+    		} else {
+    			return std::get<1>(D1) < std::get<1>(D1);
+    		}
 		}
 	}
 };
@@ -44,8 +49,6 @@ class SchedulerModule {
 		virtual void setUp();
 
 		bool moduleConnect(services::SchedulerRegister::Request &req, services::SchedulerRegister::Response &res);
-
-		std::set<std::pair<std::string, ros::Time>, Comparator> deadlinesSetCreation();
 
 		void EDFSched();
 
@@ -95,7 +98,7 @@ class SchedulerModule {
 
 		bool sync, deleting_sync;
 
-		std::set<std::pair<std::string, ros::Time>, Comparator> ready_queue;
+		std::set<std::tuple<std::string, ros::Time, int>, Comparator> ready_queue;
 };
 
 #endif

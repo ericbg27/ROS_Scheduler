@@ -92,7 +92,8 @@ bool SchedulerModule::moduleConnect(services::SchedulerRegister::Request &req, s
 									req.name.substr(1) + "topic",
 									req.name.substr(1) + "topic" + "_finish",
 									false,
-									false);
+									false,
+									req.priority);
 
 			ModuleSchedulingParameters mse;
 
@@ -104,7 +105,7 @@ bool SchedulerModule::moduleConnect(services::SchedulerRegister::Request &req, s
 
 				scheduling_modules[req.name] = mse;
 
-				auto item = std::make_pair(req.name, mp.getAbsoluteDeadline());
+				auto item = std::make_tuple(req.name, mp.getAbsoluteDeadline(), mp.getPriority());
 				ready_queue.insert(item);
 
 				lock.unlock();
@@ -114,6 +115,8 @@ bool SchedulerModule::moduleConnect(services::SchedulerRegister::Request &req, s
 
 			std::cout << "Module Connected. Name: " << req.name << std::endl;
 			std::cout << "Module Frequency: " << mp.getFrequency() << std::endl;
+			std::cout << "Module Priority: " << mp.getPriority() << std::endl;
+
 		} else {
 			std::map<std::string,ModuleParameters>::iterator modules_iterator;
 			modules_iterator = connected_modules.find(req.name);
@@ -183,7 +186,7 @@ void SchedulerModule::EDFSched() {
 
 		if(ready_queue.size() > 0) {
 
-			std::set<std::pair<std::string, ros::Time>, Comparator>::iterator deadlines_it = ready_queue.begin();
+			std::set<std::tuple<std::string, ros::Time, int>, Comparator>::iterator deadlines_it = ready_queue.begin();
 
 	        std::map<std::string, ModuleParameters>::iterator modules_iterator;
 
@@ -348,9 +351,9 @@ void SchedulerModule::updateParameters(std::map<std::string, ModuleParameters>::
         	modules_iterator->second.setExecutedInCycle(false);
         	modules_iterator->second.setTaskCounter(modules_iterator->second.getTaskCounter()[0] - 1, 1);
 
-        	std::pair<std::string, ros::Time> item = std::make_pair(modules_iterator->first, new_deadline);
+        	std::tuple<std::string, ros::Time, int> item = std::make_tuple(modules_iterator->first, new_deadline, modules_iterator->second.getPriority());
 
-        	std::set<std::pair<std::string, ros::Time>, Comparator>::iterator ready_queue_iterator;
+        	std::set<std::tuple<std::string, ros::Time, int>, Comparator>::iterator ready_queue_iterator;
 
         	ready_queue.insert(item);
 
